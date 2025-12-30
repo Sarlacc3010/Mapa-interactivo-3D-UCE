@@ -1,7 +1,41 @@
 version: '3.8'
 
 services:
-  # 1. Base de Datos SQL (Usuarios, Roles, Eventos)
+  # --- 1. BACKEND (Node.js) ---
+  backend:
+    build: ./Backend
+    container_name: uce_backend
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      # OJO: Aquí 'DB_HOST' ya no es localhost, sino el nombre del servicio 'postgres_db'
+      - DB_HOST=postgres_db
+      - DB_USER=admin_sql
+      - DB_PASSWORD=password_sql
+      - DB_NAME=uce_main_db
+      - DB_PORT=5432
+      - JWT_SECRET=uce_secreto_super_seguro
+    depends_on:
+      - postgres_db # Espera a que la BD inicie
+
+  # --- 2. FRONTEND (React) ---
+  frontend:
+    build: ./Frontend
+    container_name: uce_frontend
+    restart: always
+    ports:
+      - "5173:5173"
+    environment:
+      # Esto es para que Vite sepa dónde vigilar cambios (Hot Reload)
+      - CHOKIDAR_USEPOLLING=true
+    volumes:
+      # Este truco permite que si cambias código en tu Windows, se actualice en el Docker al instante
+      - ./Frontend/src:/app/src
+    depends_on:
+      - backend
+
+  # --- 3. BASE DE DATOS SQL ---
   postgres_db:
     image: postgres:15-alpine
     container_name: uce_sql
@@ -15,7 +49,20 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
 
-  # 2. Base de Datos NoSQL (Info Facultades)
+  # --- 4. VISOR SQL (PgAdmin) ---
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: uce_pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@uce.edu.ec
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres_db
+
+  # --- 5. BASE DE DATOS NOSQL ---
   mongo_db:
     image: mongo:6.0
     container_name: uce_nosql
@@ -28,7 +75,7 @@ services:
     volumes:
       - mongo_data:/data/db
 
-  # 3. Visor visual para MongoDB (Para ver los datos en Chrome)
+  # --- 6. VISOR MONGO ---
   mongo-express:
     image: mongo-express
     restart: always

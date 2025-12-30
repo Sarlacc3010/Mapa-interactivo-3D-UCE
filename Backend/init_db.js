@@ -12,7 +12,6 @@ const pool = new Pool({
 
 const initDB = async () => {
   try {
-    // 1. Tabla de USUARIOS
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -23,7 +22,6 @@ const initDB = async () => {
       );
     `);
 
-    // 2. Tabla de EVENTOS
     await pool.query(`
       CREATE TABLE IF NOT EXISTS events (
         id SERIAL PRIMARY KEY,
@@ -32,11 +30,11 @@ const initDB = async () => {
         location VARCHAR(255),
         date DATE,
         time TIME,
+        capacity INTEGER,
         created_by INTEGER REFERENCES users(id)
       );
     `);
 
-    // 3. Tabla de VISITAS (NUEVA)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS visits (
         id SERIAL PRIMARY KEY,
@@ -46,7 +44,6 @@ const initDB = async () => {
       );
     `);
 
-    // Crear admin por defecto si no existe
     const adminExist = await pool.query("SELECT * FROM users WHERE email = 'admin@uce.edu.ec'");
     if (adminExist.rows.length === 0) {
       const salt = await bcrypt.genSalt(10);
@@ -55,10 +52,10 @@ const initDB = async () => {
         "INSERT INTO users (email, password, role) VALUES ($1, $2, $3)",
         ['admin@uce.edu.ec', hashedPassword, 'admin']
       );
-      console.log("👤 Usuario Admin creado: admin@uce.edu.ec / admin");
+      console.log("👤 Usuario Admin creado.");
     }
 
-    console.log("🚀 Base de datos inicializada correctamente.");
+    console.log("🚀 Base de datos actualizada.");
     process.exit();
   } catch (err) {
     console.error(err);
