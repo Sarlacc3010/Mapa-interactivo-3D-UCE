@@ -11,9 +11,9 @@ export function Header({ className, children }) {
         <UCELogoImage className="w-10 h-10 p-0" /> 
         <div className="text-white">
           <h2 className="text-sm font-bold uppercase tracking-wider leading-tight text-shadow-sm">
-            Universidad Central
+            Universidad Central del Ecuador
           </h2>
-          <p className="text-[10px] text-white/80 font-light">del Ecuador</p>
+          <p className="text-[10px] text-white/80 font-light">Omnium Potentior est Sapientia</p>
         </div>
       </div>
 

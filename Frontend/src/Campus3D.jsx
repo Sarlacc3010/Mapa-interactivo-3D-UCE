@@ -1,56 +1,89 @@
 import React, { useRef } from 'react';
-import { useGLTF } from '@react-three/drei'; // <--- Importamos el cargador
+import { useFrame, useThree } from '@react-three/fiber';
+import { useGLTF } from '@react-three/drei';
+import * as THREE from 'three';
 import { locations } from './data/locations';
 
-export default function Campus3D({ onEdificioClick }) {
-  // 1. CARGAMOS EL MODELO GLB
-  // Asegúrate de que el nombre coincida con el archivo en 'public'
-  const { scene } = useGLTF('/mapa_uce.glb'); 
+export default function Campus3D({ onEdificioClick, events, onEventFound }) {
+  const { scene } = useGLTF('/mapa_uce.glb');
+  const { camera } = useThree(); 
+
+  // Sets para evitar spam de notificaciones
+  const visited = useRef(new Set());
+  const notified = useRef(new Set());
+
+  useFrame(() => {
+    const userPos = camera.position;
+
+    locations.forEach((loc) => {
+      // === PROTECCIÓN CONTRA ERRORES ===
+      // Si falta la posición o el size, usamos valores seguros
+      const position = loc.position || [0, 0, 0];
+      const size = loc.size || [10, 10, 10]; // Valor por defecto si falta
+      // ================================
+
+      const buildingPos = new THREE.Vector3(position[0], position[1], position[2]);
+      const distance = userPos.distanceTo(buildingPos);
+
+      // --- 1. ALERTA DE EVENTO (15m) ---
+      if (distance < 15) {
+        if (!notified.current.has(loc.id)) {
+          const eventHere = events && events.find(e => 
+            (e.location && loc.name && e.location.toLowerCase().includes(loc.name.toLowerCase())) || 
+            e.location === loc.id
+          );
+
+          if (eventHere) {
+            onEventFound(eventHere);
+            notified.current.add(loc.id);
+            setTimeout(() => notified.current.delete(loc.id), 60000);
+          }
+        }
+      }
+
+      // --- 2. REGISTRO DE VISITA (8m) ---
+      if (distance < 8) {
+        if (!visited.current.has(loc.id)) {
+          console.log(`📍 Visitando: ${loc.name}`);
+          
+          fetch('http://localhost:5000/visits', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              location_id: loc.name,
+              user_email: localStorage.getItem('userEmail') || 'anonimo'
+            })
+          }).catch(err => console.error("Error API:", err));
+
+          visited.current.add(loc.id); 
+          setTimeout(() => visited.current.delete(loc.id), 120000);
+        }
+      }
+    });
+  });
+
+  const handleModelClick = (e) => {
+    e.stopPropagation();
+    const clickedMeshName = e.object.name; 
+    const locationFound = locations.find(loc => loc.id === clickedMeshName);
+    if (locationFound) onEdificioClick(locationFound.name);
+  };
 
   return (
     <group dispose={null}>
-      
-      {/* --- A. TU MODELO 3D REAL --- */}
-      {/* Lo renderizamos como un objeto primitivo */}
       <primitive 
         object={scene} 
-        position={[0, 0, 0]} // Ajusta esto si tu modelo no está centrado
-        scale={1}           // Ajusta el tamaño si se ve muy chico o grande
+        position={[0, 0, 0]} 
+        scale={1} 
+        onClick={handleModelClick}
+        onPointerOver={(e) => {
+           const isInteractive = locations.some(l => l.id === e.object.name);
+           if (isInteractive) document.body.style.cursor = 'pointer';
+        }}
+        onPointerOut={() => document.body.style.cursor = 'default'}
       />
-
-      {/* --- B. ZONAS DE CLIC (HITBOXES) --- */}
-      {/* Mantenemos los cubos en las mismas coordenadas que definiste en locations.js
-          pero los hacemos INVISIBLES. Sirven solo para detectar el clic.
-      */}
-      {locations.map((loc, index) => {
-        const position = loc.position || [0, 0, 0];
-        const size = loc.size || [10, 10, 10];
-        
-        const [x, y, z] = position;
-        const height = size[1];
-        const fixedY = (height / 2); 
-
-        return (
-          <mesh
-            key={index}
-            position={[x, fixedY, z]} 
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdificioClick(loc.name || "Edificio");
-            }}
-            onPointerOver={() => document.body.style.cursor = 'pointer'}
-            onPointerOut={() => document.body.style.cursor = 'default'}
-            visible={false} // <--- ¡TRUCO! Están ahí, pero no se ven.
-          >
-            <boxGeometry args={size} />
-            <meshBasicMaterial color="red" wireframe />
-          </mesh>
-        );
-      })}
-
     </group>
   );
 }
 
-// Esto precarga el modelo para que no haya pausa al iniciar
 useGLTF.preload('/mapa_uce.glb');

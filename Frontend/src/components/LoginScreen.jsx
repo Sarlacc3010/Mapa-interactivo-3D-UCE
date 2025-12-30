@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Button, Input, Label } from "./ui/shim"; 
 import { Header } from "./Header"; // <--- Nuevo
 import { Footer } from "./Footer"; // <--- Nuevo
+import { UCELogoImage } from "./UCELogoImage";
 
 export function LoginScreen({ onLogin }) {
   const [isRegistering, setIsRegistering] = useState(false);
@@ -47,15 +48,24 @@ export function LoginScreen({ onLogin }) {
 
       {/* 2. MAIN (Formulario) */}
       <main className="flex-1 flex items-center justify-center p-4 z-10">
-        <div className="w-full max-w-md p-8 bg-white/95 backdrop-blur rounded-2xl shadow-2xl animate-in fade-in zoom-in duration-300">
-          <div className="text-center mb-6">
-             <h1 className="text-[#1e3a8a] text-2xl font-bold">
-               {isRegistering ? "Crear Cuenta" : "Portal de Acceso"}
-             </h1>
-             <p className="text-gray-500 text-sm mt-1">
-               {isRegistering ? "Registro Académico" : "Ingreso al Campus 3D"}
-             </p>
-          </div>
+       <div className="w-full max-w-md p-8 bg-white/95 backdrop-blur rounded-2xl shadow-2xl animate-in fade-in zoom-in duration-300">
+  
+  <div className="text-center mb-6">
+   {/* 1. EL LOGO (Siempre visible, centrado) */}
+   <div className="flex justify-center mb-2">
+     <UCELogoImage className="w-28 h-auto" /> {/* Ajusté un poco el tamaño para que encaje con texto */}
+   </div>
+
+   {/* 2. EL TÍTULO (Cambia dinámicamente) */}
+   <h1 className="text-[#1e3a8a] text-2xl font-bold">
+     {isRegistering ? "Crear Cuenta" : "Bienvenido"}
+   </h1>
+
+   {/* 3. SUBTÍTULO */}
+   <p className="text-gray-500 text-sm mt-1">
+     {isRegistering ? "Registro Académico" : "Ingresa tus credenciales"}
+   </p>
+</div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
