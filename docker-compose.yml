@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  # 1. Base de Datos SQL (Usuarios, Roles, Eventos)
+  postgres_db:
+    image: postgres:15-alpine
+    container_name: uce_sql
+    restart: always
+    environment:
+      POSTGRES_USER: admin_sql
+      POSTGRES_PASSWORD: password_sql
+      POSTGRES_DB: uce_main_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  # 2. Base de Datos NoSQL (Info Facultades)
+  mongo_db:
+    image: mongo:6.0
+    container_name: uce_nosql
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin_mongo
+      MONGO_INITDB_ROOT_PASSWORD: password_mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  # 3. Visor visual para MongoDB (Para ver los datos en Chrome)
+  mongo-express:
+    image: mongo-express
+    restart: always
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin_mongo
+      ME_CONFIG_MONGODB_ADMINPASSWORD: password_mongo
+      ME_CONFIG_MONGODB_URL: mongodb://admin_mongo:password_mongo@mongo_db:27017/
+    depends_on:
+      - mongo_db
+
+volumes:
+  pg_data:
+  mongo_data:
