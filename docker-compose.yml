@@ -16,6 +16,12 @@ services:
       - DB_NAME=uce_main_db
       - DB_PORT=5432
       - JWT_SECRET=uce_secreto_super_seguro
+    volumes:
+      - ./Backend:/app
+      # Esto excluye node_modules del túnel para no mezclar librerías de Windows con Linux
+      - /app/node_modules
+    # Usamos npx nodemon para que reinicie el servidor al detectar cambios
+    command: npx nodemon index.js
     depends_on:
       - postgres_db # Espera a que la BD inicie
 
