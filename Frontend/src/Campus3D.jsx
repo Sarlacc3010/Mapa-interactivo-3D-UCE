@@ -8,7 +8,6 @@ export default function Campus3D({ onEdificioClick, events, onEventFound }) {
   const { scene } = useGLTF('/mapa_uce.glb');
   const { camera } = useThree(); 
 
-  // Sets para evitar spam de notificaciones
   const visited = useRef(new Set());
   const notified = useRef(new Set());
 
@@ -16,12 +15,7 @@ export default function Campus3D({ onEdificioClick, events, onEventFound }) {
     const userPos = camera.position;
 
     locations.forEach((loc) => {
-      // === PROTECCIÓN CONTRA ERRORES ===
-      // Si falta la posición o el size, usamos valores seguros
       const position = loc.position || [0, 0, 0];
-      const size = loc.size || [10, 10, 10]; // Valor por defecto si falta
-      // ================================
-
       const buildingPos = new THREE.Vector3(position[0], position[1], position[2]);
       const distance = userPos.distanceTo(buildingPos);
 
@@ -46,12 +40,19 @@ export default function Campus3D({ onEdificioClick, events, onEventFound }) {
         if (!visited.current.has(loc.id)) {
           console.log(`📍 Visitando: ${loc.name}`);
           
+          // === RECUPERAR EL TOKEN DEL NAVEGADOR ===
+          const token = localStorage.getItem('token');
+          
           fetch('http://localhost:5000/visits', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              // === ENVIAR TOKEN AL BACKEND ===
+              'Authorization': `Bearer ${token}` 
+            },
             body: JSON.stringify({
-              location_id: loc.name,
-              user_email: localStorage.getItem('userEmail') || 'anonimo'
+              location_id: loc.name
+              // Ya no enviamos user_email aquí, el backend lo saca del token
             })
           }).catch(err => console.error("Error API:", err));
 
