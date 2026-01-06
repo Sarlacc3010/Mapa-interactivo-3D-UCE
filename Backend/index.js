@@ -3,15 +3,17 @@ const cors = require('cors');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-require('dotenv').config(); 
+require('dotenv').config();
 
-// IMPORTAMOS EL MIDDLEWARE DE SEGURIDAD
+// 1. IMPORTAR MIDDLEWARE Y SERVICIO DE CORREO
 const verifyToken = require('./authMiddleware');
+const { sendEventNotification } = require('./emailService');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+// 2. CONFIGURACIÓN BASE DE DATOS
 const pool = new Pool({
   user: process.env.DB_USER,
   host: process.env.DB_HOST,
@@ -32,18 +34,23 @@ app.post('/register', async (req, res) => {
   try {
     const { email, password } = req.body;
     
+    // Validar si existe
     const userExist = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
     if (userExist.rows.length > 0) return res.status(400).json({ error: "Correo ya registrado" });
 
+    // Encriptar contraseña
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    // Guardar usuario
     const newUser = await pool.query(
       "INSERT INTO users (email, password, role) VALUES ($1, $2, $3) RETURNING *",
       [email, hashedPassword, 'user']
     );
 
+    // Generar token
     const token = jwt.sign({ id: newUser.rows[0].id, email: newUser.rows[0].email, role: 'user' }, SECRET_KEY, { expiresIn: '24h' });
+    
     res.json({ message: "Usuario creado", token, role: 'user', email: newUser.rows[0].email });
   } catch (err) { 
     console.error(err); 
@@ -64,7 +71,6 @@ app.post('/login', async (req, res) => {
     
     if (!validPassword) return res.status(400).json({ error: "Contraseña incorrecta" });
 
-    // Incluimos el email en el token para usarlo después
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, SECRET_KEY, { expiresIn: '24h' });
     res.json({ message: "Login exitoso", token, role: user.role, email: user.email });
   } catch (err) { 
@@ -74,12 +80,10 @@ app.post('/login', async (req, res) => {
 });
 
 // --- RUTA DE VISITAS (PROTEGIDA 🔒) ---
-// Ahora usamos 'verifyToken' antes de procesar la visita
 app.post('/visits', verifyToken, async (req, res) => {
   try {
     const { location_id } = req.body;
-    // Extraemos el email directamente del token (más seguro que recibirlo en el body)
-    const userEmail = req.user.email; 
+    const userEmail = req.user.email; // Obtenemos el email del token
 
     await pool.query(
       "INSERT INTO visits (location_id, visitor_email) VALUES ($1, $2)",
@@ -93,22 +97,43 @@ app.post('/visits', verifyToken, async (req, res) => {
   }
 });
 
-// --- RUTA DE EVENTOS (PROTEGIDA 🔒) ---
-// Ejemplo de cómo proteger la creación de eventos también
+// --- RUTA DE EVENTOS (PROTEGIDA + NOTIFICACIONES) ---
 app.post('/events', verifyToken, async (req, res) => {
   try {
     const { title, description, location, date, time } = req.body;
-    const userId = req.user.id; // El ID viene del token
+    const userId = req.user.id;
 
+    // A. Guardar evento
     const newEvent = await pool.query(
       "INSERT INTO events (title, description, location, date, time, created_by) VALUES($1, $2, $3, $4, $5, $6) RETURNING *",
       [title, description, location, date, time, userId]
     );
+
+    // B. Enviar Correos (Con Debugging)
+    console.log("🔍 Buscando usuarios para notificar...");
+    const usersResult = await pool.query("SELECT email FROM users");
+    const emailList = usersResult.rows.map(user => user.email);
+    
+    console.log(`📊 Usuarios encontrados: ${emailList.length}`);
+    console.log("📧 Lista de correos:", emailList);
+
+    if (emailList.length > 0) {
+        console.log("🚀 Intentando enviar correos...");
+        sendEventNotification(emailList, title, date);
+    } else {
+        console.log("⚠️ No se enviaron correos porque la lista está vacía.");
+    }
+
     res.json(newEvent.rows[0]);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { 
+    console.error(err);
+    res.status(500).json({ error: err.message }); 
+  }
 });
 
+// --- INICIAR SERVIDOR ---
 const PORT = 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Servidor Backend listo en http://localhost:${PORT}`);
+  console.log(`📡 Conectado a DB: ${process.env.DB_NAME} como ${process.env.DB_USER}`);
 });

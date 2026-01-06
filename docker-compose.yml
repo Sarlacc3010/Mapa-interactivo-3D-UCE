@@ -61,7 +61,7 @@ services:
     container_name: uce_pgadmin
     restart: always
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@uce.edu.ec
+      PGADMIN_DEFAULT_EMAIL: admin-mapa@uce.edu.ec
       PGADMIN_DEFAULT_PASSWORD: admin
     ports:
       - "5050:80"

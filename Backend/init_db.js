@@ -44,13 +44,13 @@ const initDB = async () => {
       );
     `);
 
-    const adminExist = await pool.query("SELECT * FROM users WHERE email = 'admin@uce.edu.ec'");
+    const adminExist = await pool.query("SELECT * FROM users WHERE email = 'admin-mapa@uce.edu.ec'");
     if (adminExist.rows.length === 0) {
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash('admin', salt);
       await pool.query(
         "INSERT INTO users (email, password, role) VALUES ($1, $2, $3)",
-        ['admin@uce.edu.ec', hashedPassword, 'admin']
+        ['admin-mapa@uce.edu.ec', hashedPassword, 'admin']
       );
       console.log("👤 Usuario Admin creado.");
     }

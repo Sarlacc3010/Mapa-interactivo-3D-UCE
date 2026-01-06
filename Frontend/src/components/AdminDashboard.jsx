@@ -4,11 +4,58 @@ import { LogOut, Map, Plus, Trash2, Calendar, MapPin } from "lucide-react";
 
 export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDeleteEvent }) {
   const [newEvent, setNewEvent] = useState({ title: "", location: "", date: "", time: "" });
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onAddEvent({ ...newEvent, id: Date.now().toString(), capacity: 100, registered: 0 });
-    setNewEvent({ title: "", location: "", date: "", time: "" });
+    setLoading(true);
+
+    // 1. RECUPERAR EL TOKEN (Tu pase VIP)
+    const token = localStorage.getItem('token');
+
+    if (!token) {
+      alert("Error: No has iniciado sesión.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // 2. ENVIAR DATOS AL BACKEND (Donde vive Node.js y el EmailService)
+      const response = await fetch('http://localhost:5000/events', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // <--- ESTO ES VITAL
+        },
+        body: JSON.stringify({
+          title: newEvent.title,
+          location: newEvent.location,
+          date: newEvent.date,
+          time: newEvent.time,
+          description: "Evento oficial UCE" // Agrego esto por defecto si no tienes campo en el form
+        })
+      });
+
+      // 3. VERIFICAR RESPUESTA
+      if (response.ok) {
+        const eventData = await response.json();
+        
+        // Actualizamos la vista con los datos reales de la BD
+        onAddEvent(eventData); 
+        
+        // Limpiamos el formulario
+        setNewEvent({ title: "", location: "", date: "", time: "" });
+        alert("✅ Evento creado y correos enviados correctamente.");
+      } else {
+        const errorData = await response.json();
+        alert(`❌ Error: ${errorData.error || "No se pudo crear el evento"}`);
+      }
+    } catch (error) {
+      console.error("Error de conexión:", error);
+      alert("❌ Error: No se pudo conectar con el servidor Backend.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -53,8 +100,13 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
                 >
                   <option value="">Seleccionar Facultad...</option>
                   <option value="Facultad de Ingeniería">Facultad de Ingeniería</option>
+                  <option value="Facultad de Medicina">Facultad de Medicina</option>
+                  <option value="Facultad de Ciencias Económicas">Facultad de Ciencias Económicas</option>
+                  <option value="Facultad de Arquitectura">Facultad de Arquitectura</option>
                   <option value="Facultad de Jurisprudencia">Facultad de Jurisprudencia</option>
                   <option value="Biblioteca Central">Biblioteca Central</option>
+                  <option value="Teatro Universitario">Teatro Universitario</option>
+                  <option value="Administración">Administración</option>
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -67,7 +119,9 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
                   <Input type="time" required value={newEvent.time} onChange={e => setNewEvent({...newEvent, time: e.target.value})} />
                 </div>
               </div>
-              <Button type="submit" className="w-full mt-2">Publicar Evento</Button>
+              <Button type="submit" className="w-full mt-2" disabled={loading}>
+                {loading ? "Guardando y Enviando..." : "Publicar Evento"}
+              </Button>
             </form>
           </Card>
         </div>
