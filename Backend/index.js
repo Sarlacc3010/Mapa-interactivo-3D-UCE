@@ -100,28 +100,25 @@ app.post('/visits', verifyToken, async (req, res) => {
 // --- RUTA DE EVENTOS (PROTEGIDA + NOTIFICACIONES) ---
 app.post('/events', verifyToken, async (req, res) => {
   try {
+    // 1. Asegúrate de recibir 'description' aquí
     const { title, description, location, date, time } = req.body;
     const userId = req.user.id;
 
-    // A. Guardar evento
+    // Guardar evento
     const newEvent = await pool.query(
       "INSERT INTO events (title, description, location, date, time, created_by) VALUES($1, $2, $3, $4, $5, $6) RETURNING *",
       [title, description, location, date, time, userId]
     );
 
-    // B. Enviar Correos (Con Debugging)
+    // Enviar Correos
     console.log("🔍 Buscando usuarios para notificar...");
     const usersResult = await pool.query("SELECT email FROM users");
     const emailList = usersResult.rows.map(user => user.email);
-    
-    console.log(`📊 Usuarios encontrados: ${emailList.length}`);
-    console.log("📧 Lista de correos:", emailList);
 
     if (emailList.length > 0) {
         console.log("🚀 Intentando enviar correos...");
-        sendEventNotification(emailList, title, date);
-    } else {
-        console.log("⚠️ No se enviaron correos porque la lista está vacía.");
+        // 2. AQUI PASAMOS LA DESCRIPCIÓN (Agregamos el 4to parámetro)
+        sendEventNotification(emailList, title, date, description); 
     }
 
     res.json(newEvent.rows[0]);
