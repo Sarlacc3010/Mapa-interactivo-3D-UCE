@@ -1,17 +1,20 @@
 import { useState, useEffect } from 'react';
 
-// Fíjate que dice "export const", NO "export default" ni solo "const"
-export const useLocations = () => { 
+// URL del backend (Asegúrate de que coincida con el puerto de tu backend)
+const API_URL = 'http://localhost:5000/api/locations';
+
+export const useLocations = () => {
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Asegúrate de que este puerto (5000) coincida con tu backend
     const fetchLocations = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/locations');
-        if (!response.ok) throw new Error('Error al cargar ubicaciones');
+        const response = await fetch(API_URL);
+        if (!response.ok) {
+          throw new Error('Error en la respuesta del servidor');
+        }
         const data = await response.json();
         setLocations(data);
       } catch (err) {

@@ -1,8 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button, Input, Label } from "./ui/shim"; 
 import { Header } from "./Header";
 import { Footer } from "./Footer";
 import { UCELogoImage } from "./UCELogoImage";
+// Importamos hooks de router para leer la URL
+import { useSearchParams, useNavigate } from 'react-router-dom';
 
 export function LoginScreen({ onLogin }) {
   const [isRegistering, setIsRegistering] = useState(false);
@@ -11,6 +13,26 @@ export function LoginScreen({ onLogin }) {
   const [confirmPass, setConfirmPass] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Hooks para manejar el retorno de Google
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  // EFECTO: Capturar token de Google si viene en la URL
+  useEffect(() => {
+    const token = searchParams.get("token");
+    const role = searchParams.get("role");
+    const userEmail = searchParams.get("email");
+
+    if (token) {
+      localStorage.setItem('token', token);
+      if (userEmail) localStorage.setItem('userEmail', userEmail);
+      
+      onLogin(role, userEmail);
+      navigate("/", { replace: true });
+    }
+  }, [searchParams, onLogin, navigate]);
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,27 +51,29 @@ export function LoginScreen({ onLogin }) {
       const data = await response.json();
       
       if (response.ok) {
-        // === GUARDAR TOKEN ===
         localStorage.setItem('token', data.token);
         localStorage.setItem('userEmail', data.email);
-        onLogin(data.role);
-      } else { 
-        setError(data.error || "Error"); 
+        onLogin(data.role, data.email);
+      } else {
+        setError(data.error || "Ocurrió un error");
       }
-    } catch (err) { 
-      setError("Sin conexión al servidor"); 
-    } finally { 
-      setLoading(false); 
+    } catch (err) {
+      setError("Error de conexión con el servidor");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
+    // ESTILO ORIGINAL RECUPERADO (Degradado Azul/Rojo)
     <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-[#1e3a8a] to-[#D9232D] relative overflow-hidden">
       <Header>
          <div className="hidden sm:block text-white/80 text-xs font-medium cursor-pointer hover:text-white transition-colors">Ayuda</div>
       </Header>
+      
       <main className="flex-1 flex items-center justify-center p-4 z-10">
        <div className="w-full max-w-md p-8 bg-white/95 backdrop-blur rounded-2xl shadow-2xl animate-in fade-in zoom-in duration-300">
+          
           <div className="text-center mb-6">
            <div className="flex justify-center mb-2">
              <UCELogoImage className="w-28 h-auto" />
@@ -77,11 +101,34 @@ export function LoginScreen({ onLogin }) {
                 <Input type="password" placeholder="••••••••" value={confirmPass} onChange={(e) => setConfirmPass(e.target.value)} required className="bg-white" />
               </div>
             )}
-            {error && <div className="p-3 rounded-lg bg-red-50 text-red-600 text-xs font-bold text-center">⚠️ {error}</div>}
+            {error && <div className="p-3 rounded-lg bg-red-50 text-red-600 text-xs font-bold text-center border border-red-100">⚠️ {error}</div>}
             
-            <Button type="submit" className="w-full h-11 mt-4" disabled={loading}>
-              {loading ? "Cargando..." : (isRegistering ? "Registrarse" : "Ingresar")}
+            <Button type="submit" className="w-full h-11 mt-4 shadow-lg hover:shadow-blue-500/25 transition-all" disabled={loading}>
+              {loading ? "Cargando..." : (isRegistering ? "Ingresar" : "Ingresar")}
             </Button>
+
+            {/* --- BOTÓN DE GOOGLE --- */}
+            {!isRegistering && (
+                <div className="mt-4">
+                  <div className="relative mb-4">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t border-gray-200" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-white px-2 text-gray-500">O continúa con</span>
+                    </div>
+                  </div>
+                  
+                  <button
+                    type="button"
+                    onClick={() => window.location.href = "http://localhost:5000/auth/google"}
+                    className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 text-gray-700 font-medium py-2.5 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+                  >
+                    <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5" alt="G" />
+                    Google
+                  </button>
+                </div>
+            )}
           </form>
 
           <div className="mt-6 pt-4 border-t border-gray-100 text-center">

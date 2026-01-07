@@ -3,24 +3,23 @@ const router = express.Router();
 const { Pool } = require('pg');
 require('dotenv').config();
 
-// Usamos las mismas credenciales que en tu index.js
+// Configuración de la base de datos
 const pool = new Pool({
   user: process.env.DB_USER,
-  host: process.env.DB_HOST,
+  host: process.env.DB_HOST, // En Docker esto será 'db'
   database: process.env.DB_NAME,
   password: process.env.DB_PASSWORD,
   port: process.env.DB_PORT,
 });
 
-// GET /api/locations
+// Obtener todas las ubicaciones
 router.get('/', async (req, res) => {
   try {
-    // Consulta SQL en lugar de Mongoose
     const result = await pool.query('SELECT * FROM locations ORDER BY name ASC');
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Error al obtener ubicaciones" });
+    console.error("Error al obtener locations:", err);
+    res.status(500).json({ error: "Error interno del servidor" });
   }
 });
 
