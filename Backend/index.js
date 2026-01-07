@@ -5,15 +5,18 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
-// 1. IMPORTAR MIDDLEWARE Y SERVICIO DE CORREO
+// 1. IMPORTAR RUTAS Y MIDDLEWARE
+const locationRoutes = require('./routes/locations'); // <--- IMPORTANTE: Tu archivo de rutas
 const verifyToken = require('./authMiddleware');
 const { sendEventNotification } = require('./emailService');
 
 const app = express();
+
+// Configuración de CORS y JSON
 app.use(cors());
 app.use(express.json());
 
-// 2. CONFIGURACIÓN BASE DE DATOS
+// 2. CONFIGURACIÓN BASE DE DATOS (PostgreSQL)
 const pool = new Pool({
   user: process.env.DB_USER,
   host: process.env.DB_HOST,
@@ -24,12 +27,19 @@ const pool = new Pool({
 
 const SECRET_KEY = process.env.JWT_SECRET;
 
-// --- RUTA DE PRUEBA ---
+// --- 3. CONEXIÓN DE RUTAS (Endpoints) ---
+
+// A. RUTA DE UBICACIONES (Esta es la que arregla el error 404)
+// Ahora tu frontend puede llamar a /api/locations y el backend sabrá qué hacer.
+app.use('/api/locations', locationRoutes); 
+
+
+// B. RUTA DE PRUEBA
 app.get('/', (req, res) => {
   res.send('Backend UCE funcionando correctamente 🚀');
 });
 
-// --- RUTA DE REGISTRO (Pública) ---
+// C. RUTA DE REGISTRO
 app.post('/register', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -58,7 +68,7 @@ app.post('/register', async (req, res) => {
   }
 });
 
-// --- RUTA DE LOGIN (Pública) ---
+// D. RUTA DE LOGIN
 app.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -79,11 +89,11 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// --- RUTA DE VISITAS (PROTEGIDA 🔒) ---
+// E. RUTA DE VISITAS
 app.post('/visits', verifyToken, async (req, res) => {
   try {
     const { location_id } = req.body;
-    const userEmail = req.user.email; // Obtenemos el email del token
+    const userEmail = req.user.email;
 
     await pool.query(
       "INSERT INTO visits (location_id, visitor_email) VALUES ($1, $2)",
@@ -97,10 +107,9 @@ app.post('/visits', verifyToken, async (req, res) => {
   }
 });
 
-// --- RUTA DE EVENTOS (PROTEGIDA + NOTIFICACIONES) ---
+// F. RUTA DE EVENTOS
 app.post('/events', verifyToken, async (req, res) => {
   try {
-    // 1. Asegúrate de recibir 'description' aquí
     const { title, description, location, date, time } = req.body;
     const userId = req.user.id;
 
@@ -117,7 +126,6 @@ app.post('/events', verifyToken, async (req, res) => {
 
     if (emailList.length > 0) {
         console.log("🚀 Intentando enviar correos...");
-        // 2. AQUI PASAMOS LA DESCRIPCIÓN (Agregamos el 4to parámetro)
         sendEventNotification(emailList, title, date, description); 
     }
 

@@ -7,26 +7,29 @@ import { OrbitControls, Environment, Html } from '@react-three/drei';
 // --- 2. Iconos (Lucide React) ---
 import { Search, LogOut, Settings } from "lucide-react";
 
-// --- 3. Componentes de Estructura (Nuevos) ---
+// --- 3. Componentes de Estructura ---
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 
 // --- 4. Pantallas Principales ---
 import { LoginScreen } from './components/LoginScreen';
-// Asegúrate de tener este archivo o comenta la línea si aún no lo creas:
 import { AdminDashboard } from './components/AdminDashboard';
 
 // --- 5. Componentes de UI del Mapa ---
-// (Si no tienes alguno de estos archivos, coméntalos temporalmente)
 import { SearchPanel } from './components/SearchPanel';
 import { BuildingInfoCard } from './components/BuildingInfoCard';
 import { ZoomControls, Instructions } from './components/Controls';
 
 // --- 6. Modelo 3D y Datos ---
-import Campus3D from './Campus3D'; // Asumiendo que está en la raíz de src
-import { locations } from './data/locations'; // Asumiendo que está en src/data/locations.js
+import Campus3D from './Campus3D'; 
 
-// --- Loader de Carga (Componente interno) ---
+// [CAMBIO 1] ELIMINAMOS EL IMPORT ESTÁTICO DE './data/locations'
+// import { locations } from './data/locations'; 
+
+// [CAMBIO 2] IMPORTAMOS EL HOOK QUE CONECTA CON LA BASE DE DATOS
+import { useLocations } from './hooks/useLocations'; 
+
+// --- Loader de Carga ---
 function Loader() {
   return (
     <Html center>
@@ -39,13 +42,18 @@ function Loader() {
 }
 
 export default function App() {
+  // [CAMBIO 3] INICIALIZAMOS EL HOOK AQUÍ
+  // Ahora 'locations' viene de MongoDB, no de un archivo local.
+  const { locations } = useLocations();
+  
+
   // --- ESTADOS ---
-  const [userRole, setUserRole] = useState(null); // null | 'user' | 'admin'
-  const [viewMode, setViewMode] = useState('map'); // 'map' | 'admin'
+  const [userRole, setUserRole] = useState(null); 
+  const [viewMode, setViewMode] = useState('map'); 
   const [showSearch, setShowSearch] = useState(false);
   const [selectedLoc, setSelectedLoc] = useState(null);
 
-  // Datos de prueba para el Dashboard
+  // Datos de prueba para el Dashboard (Eventos)
   const [events, setEvents] = useState([
     { id: 1, title: "Feria de Ciencias", location: "Facultad de Ingeniería", date: "2025-01-20", time: "10:00" }
   ]);
@@ -64,7 +72,6 @@ export default function App() {
 
   // --- 2. RENDERIZADO: PANEL DE ADMIN ---
   if (userRole === 'admin' && viewMode === 'admin') {
-    // Si no tienes AdminDashboard creado aún, puedes poner un <div>Hola Admin</div> temporal
     return (
       <AdminDashboard
         onLogout={() => setUserRole(null)}
@@ -84,50 +91,40 @@ export default function App() {
       <div className="absolute inset-0 z-0">
         <Canvas
           camera={{ position: [60, 60, 60], fov: 45 }}
-          shadows // <--- ¡Asegúrate de que esto esté aquí!
+          shadows 
           dpr={[1, 1.5]}
         >
           <Suspense fallback={<Loader />}>
-            <Campus3D onEdificioClick={(name) => {
-              const loc = locations.find(l => l.name === name);
-              if (loc) setSelectedLoc(loc);
-            }} />
+            <Campus3D 
+              onEdificioClick={(name) => {
+                // Aquí usamos la lista 'locations' que vino de la base de datos
+                const loc = locations.find(l => l.name === name);
+                if (loc) setSelectedLoc(loc);
+              }} 
+            />
             <Environment preset="city" />
             <ambientLight intensity={0.7} />
             <directionalLight
               position={[50, 80, 30]}
               intensity={1.5}
-              castShadow // <--- La luz debe emitir sombra
-              shadow-mapSize={[1024, 1024]} // Calidad de sombra
+              castShadow 
+              shadow-mapSize={[1024, 1024]} 
             />
           </Suspense>
           <OrbitControls
             makeDefault
-
-            // 1. Limitar rotación vertical (Para no ir debajo del suelo)
-            minPolarAngle={0}             // No mirar directo hacia arriba (opcional)
-            maxPolarAngle={Math.PI / 2.1} // ¡IMPORTANTE! 90 grados máx (el horizonte)
-
-            // 2. Limitar Zoom (Para no atravesar edificios ni irse al espacio)
+            minPolarAngle={0}            
+            maxPolarAngle={Math.PI / 2.1} 
             minDistance={20}
             maxDistance={150}
-
-            // 3. Suavizado (Para que se sienta como un drone)
             enableDamping={true}
             dampingFactor={0.05}
-
-          // 4. (Opcional) Limitar rotación horizontal si solo quieres ver una cara
-          // minAzimuthAngle={-Math.PI / 4}
-          // maxAzimuthAngle={Math.PI / 4}
           />
         </Canvas>
       </div>
 
-      {/* CAPA SUPERIOR: Interfaz (Header y Paneles) */}
-
-      {/* HEADER: Barra superior transparente */}
+      {/* CAPA SUPERIOR: Interfaz */}
       <Header className="absolute top-0 left-0 w-full bg-gradient-to-b from-black/80 to-transparent border-none text-white z-50">
-
         <div className="flex items-center gap-3">
           {/* Botón Buscar */}
           {!showSearch && (
@@ -140,7 +137,7 @@ export default function App() {
             </button>
           )}
 
-          {/* Botón Admin (Solo si es admin) */}
+          {/* Botón Admin */}
           {userRole === 'admin' && (
             <button
               onClick={() => setViewMode('admin')}
@@ -162,14 +159,14 @@ export default function App() {
         </div>
       </Header>
 
-      {/* PANELES FLOTANTES (Search, Info, Controles) */}
+      {/* PANELES FLOTANTES */}
       <div className="absolute inset-0 z-10 pointer-events-none">
 
-        {/* Paneles interactivos (pointer-events-auto reactiva los clics) */}
         <div className="pointer-events-auto">
           {showSearch && (
             <SearchPanel
-              locations={locations}
+              // Aquí pasamos la lista de la base de datos al buscador
+              locations={locations} 
               onLocationSelect={(loc) => { setSelectedLoc(loc); setShowSearch(false); }}
               onClose={() => setShowSearch(false)}
             />
@@ -183,9 +180,7 @@ export default function App() {
           )}
         </div>
 
-        {/* Controles de Zoom e Instrucciones */}
         <div className="pointer-events-auto">
-          {/* Si no tienes estos componentes, coméntalos */}
           <Instructions />
           <ZoomControls />
         </div>

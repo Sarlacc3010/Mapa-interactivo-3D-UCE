@@ -1,27 +1,33 @@
 import React, { useState } from "react";
 import { Button, Input, Card, Badge } from "./ui/shim";
-import { LogOut, Map, Plus, Trash2, Calendar, MapPin, AlignLeft } from "lucide-react";
+import { LogOut, Map, Plus, Trash2, Calendar, MapPin, AlignLeft, Loader2 } from "lucide-react";
+// 1. IMPORTAMOS EL HOOK
+import { useLocations } from "../hooks/useLocations"; 
 
 export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDeleteEvent }) {
-  // 1. AGREGAMOS 'description' AL ESTADO INICIAL
+  // 2. USAMOS EL HOOK (Renombramos 'loading' a 'loadingLocs' para no chocar con el loading del formulario)
+  const { locations, loading: loadingLocs } = useLocations(); 
+
   const [newEvent, setNewEvent] = useState({ 
     title: "", 
-    description: "", // <--- Nuevo campo
+    description: "", 
     location: "", 
     date: "", 
     time: "" 
   });
-  const [loading, setLoading] = useState(false);
+  
+  // Este loading es solo para el botón de "Guardar"
+  const [isSubmitting, setIsSubmitting] = useState(false); 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setIsSubmitting(true);
 
     const token = localStorage.getItem('token');
 
     if (!token) {
       alert("Error: No has iniciado sesión.");
-      setLoading(false);
+      setIsSubmitting(false);
       return;
     }
 
@@ -34,8 +40,8 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
         },
         body: JSON.stringify({
           title: newEvent.title,
-          description: newEvent.description, // 2. ENVIAMOS LA DESCRIPCIÓN REAL
-          location: newEvent.location,
+          description: newEvent.description,
+          location: newEvent.location, // Aquí se enviará lo que elijas en el select
           date: newEvent.date,
           time: newEvent.time
         })
@@ -45,9 +51,9 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
         const eventData = await response.json();
         onAddEvent(eventData); 
         
-        // 3. LIMPIAMOS EL FORMULARIO COMPLETO
+        // Limpiamos el formulario
         setNewEvent({ title: "", description: "", location: "", date: "", time: "" });
-        alert("✅ Evento creado y correos enviados correctamente.");
+        alert("✅ Evento creado correctamente.");
       } else {
         const errorData = await response.json();
         alert(`❌ Error: ${errorData.error || "No se pudo crear el evento"}`);
@@ -56,7 +62,7 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
       console.error("Error de conexión:", error);
       alert("❌ Error: No se pudo conectar con el servidor Backend.");
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -94,25 +100,34 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
                 <Input required value={newEvent.title} onChange={e => setNewEvent({...newEvent, title: e.target.value})} placeholder="Ej: Feria de Ciencias" />
               </div>
 
-              {/* UBICACIÓN */}
+              {/* UBICACIÓN - AQUÍ ESTÁ EL CAMBIO IMPORTANTE */}
               <div>
                 <label className="text-xs font-semibold text-gray-500 uppercase">Ubicación</label>
                 <select 
-                  className="flex h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:ring-2 focus:ring-[#D9232D] outline-none"
+                  className="flex h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:ring-2 focus:ring-[#D9232D] outline-none disabled:bg-gray-100"
                   value={newEvent.location}
                   onChange={e => setNewEvent({...newEvent, location: e.target.value})}
                   required
+                  disabled={loadingLocs} // Deshabilitamos si está cargando
                 >
-                  <option value="">Seleccionar Facultad...</option>
-                  <option value="Facultad de Ingeniería">Facultad de Ingeniería</option>
-                  <option value="Facultad de Jurisprudencia">Facultad de Jurisprudencia</option>
-                  <option value="Biblioteca Central">Biblioteca Central</option>
-                  <option value="Teatro Universitario">Teatro Universitario</option>
-                  <option value="Administración">Administración</option>
+                  <option value="">Seleccionar Lugar...</option>
+                  
+                  {/* Renderizado Condicional */}
+                  {loadingLocs ? (
+                    <option disabled>Cargando lista de edificios...</option>
+                  ) : (
+                    locations.map((loc) => (
+                      // Usamos loc.name como valor para que coincida con tu backend actual
+                      // Si en el futuro quieres usar IDs, cambia value={loc.id}
+                      <option key={loc.id || loc._id} value={loc.name}>
+                        {loc.name}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
 
-              {/* 4. CAMPO DE DESCRIPCIÓN (NUEVO) */}
+              {/* DESCRIPCIÓN */}
               <div>
                 <label className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1">
                    Descripción
@@ -138,8 +153,10 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
                 </div>
               </div>
 
-              <Button type="submit" className="w-full mt-2" disabled={loading}>
-                {loading ? "Guardando..." : "Publicar Evento"}
+              <Button type="submit" className="w-full mt-2" disabled={isSubmitting}>
+                {isSubmitting ? (
+                    <span className="flex items-center gap-2"><Loader2 className="animate-spin w-4 h-4"/> Guardando...</span>
+                ) : "Publicar Evento"}
               </Button>
             </form>
           </Card>
@@ -154,14 +171,13 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
             </div>
           ) : (
             events.map(event => (
-              <div key={event.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col gap-2 group hover:border-[#D9232D] transition-colors">
+              <div key={event.id || event._id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col gap-2 group hover:border-[#D9232D] transition-colors">
                 <div className="flex justify-between items-start">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="font-bold text-[#1e3a8a]">{event.title}</h3>
                       <Badge variant="secondary" className="text-[10px]">Activo</Badge>
                     </div>
-                    {/* Mostramos la descripción en la lista también */}
                     <p className="text-sm text-gray-600 mb-2 line-clamp-2">{event.description}</p> 
                     
                     <div className="flex items-center gap-4 text-xs text-gray-500">
