@@ -9,21 +9,34 @@ services:
     ports:
       - "5000:5000"
     environment:
-      # OJO: Aquí 'DB_HOST' ya no es localhost, sino el nombre del servicio 'postgres_db'
+      # --- SQL ---
       - DB_HOST=postgres_db
       - DB_USER=admin_sql
       - DB_PASSWORD=password_sql
       - DB_NAME=uce_main_db
       - DB_PORT=5432
+      # --- MONGO (Conexión string) ---
+      # Explicación: mongodb://usuario:pass@nombre_servicio:puerto/nombre_db?authSource=admin
+      - MONGO_URI=mongodb://admin_mongo:password_mongo@mongo_db:27017/uce_nosql_db?authSource=admin
+      # --- REDIS ---
+      - REDIS_HOST=redis_cache
+      - REDIS_PORT=6379
+      # --- GENERAL ---
       - JWT_SECRET=uce_secreto_super_seguro
+      # Carpeta donde se guardarán las imágenes
+      - UPLOAD_PATH=/app/public/uploads
     volumes:
       - ./Backend:/app
-      # Esto excluye node_modules del túnel para no mezclar librerías de Windows con Linux
       - /app/node_modules
-    # Usamos npx nodemon para que reinicie el servidor al detectar cambios
+      # --- VOLUMEN DE IMÁGENES ---
+      # Mapeamos una carpeta local 'uploads' a la carpeta pública del contenedor
+      # Así las imágenes no se borran si reinicias el docker
+      - ./uploads:/app/public/uploads
     command: npx nodemon index.js
     depends_on:
-      - postgres_db # Espera a que la BD inicie
+      - postgres_db
+      - mongo_db
+      - redis_cache
 
   # --- 2. FRONTEND (React) ---
   frontend:
@@ -33,15 +46,13 @@ services:
     ports:
       - "5173:5173"
     environment:
-      # Esto es para que Vite sepa dónde vigilar cambios (Hot Reload)
       - CHOKIDAR_USEPOLLING=true
     volumes:
-      # Este truco permite que si cambias código en tu Windows, se actualice en el Docker al instante
       - ./Frontend/src:/app/src
     depends_on:
       - backend
 
-  # --- 3. BASE DE DATOS SQL ---
+  # --- 3. BASE DE DATOS SQL (Postgres) ---
   postgres_db:
     image: postgres:15-alpine
     container_name: uce_sql
@@ -68,7 +79,7 @@ services:
     depends_on:
       - postgres_db
 
-  # --- 5. BASE DE DATOS NOSQL ---
+  # --- 5. BASE DE DATOS NOSQL (Mongo) ---
   mongo_db:
     image: mongo:6.0
     container_name: uce_nosql
@@ -81,7 +92,7 @@ services:
     volumes:
       - mongo_data:/data/db
 
-  # --- 6. VISOR MONGO ---
+  # --- 6. VISOR MONGO (Mongo Express) ---
   mongo-express:
     image: mongo-express
     restart: always
@@ -94,6 +105,19 @@ services:
     depends_on:
       - mongo_db
 
+  # --- 7. CACHÉ (Redis) ---
+  redis_cache:
+    image: redis:alpine
+    container_name: uce_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    # El comando inicia redis y habilita persistencia básica
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+
 volumes:
   pg_data:
   mongo_data:
+  redis_data:

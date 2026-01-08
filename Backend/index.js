@@ -3,36 +3,95 @@ const cors = require('cors');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-// --- NUEVOS IMPORTS PARA OAUTH ---
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 require('dotenv').config();
 
-// 1. IMPORTAR RUTAS Y MIDDLEWARE
+// --- NUEVOS IMPORTS (MONGO, REDIS, ARCHIVOS) ---
+const mongoose = require('mongoose');
+const { createClient } = require('redis');
+const path = require('path');
+const fs = require('fs');
+
+// IMPORTAR RUTAS Y MIDDLEWARE PROPIOS
 const locationRoutes = require('./routes/locations');
 const verifyToken = require('./authMiddleware');
 const { sendEventNotification } = require('./emailService');
 
 const app = express();
+const PORT = 5000;
 
-// Configuración de CORS y JSON
+// ==========================================
+// 1. MIDDLEWARES GLOBALES
+// ==========================================
 app.use(cors());
 app.use(express.json());
-// Inicializar Passport (necesario para OAuth)
 app.use(passport.initialize());
 
-// 2. CONFIGURACIÓN BASE DE DATOS (PostgreSQL)
+// ==========================================
+// 2. CONFIGURACIÓN DE IMÁGENES (NUEVO)
+// ==========================================
+// Creamos la ruta absoluta a la carpeta pública
+const uploadDir = path.join(__dirname, 'public', 'uploads');
+
+// Si la carpeta no existe, la creamos automáticamente
+if (!fs.existsSync(uploadDir)){
+    fs.mkdirSync(uploadDir, { recursive: true });
+    console.log('📂 Carpeta /public/uploads creada');
+}
+
+// Servimos la carpeta como estática. 
+// Acceso web: http://localhost:5000/uploads/nombre_imagen.jpg
+app.use('/uploads', express.static(uploadDir));
+
+
+// ==========================================
+// 3. CONEXIÓN BASE DE DATOS SQL (PostgreSQL)
+// ==========================================
 const pool = new Pool({
   user: process.env.DB_USER,
-  host: process.env.DB_HOST,
+  host: process.env.DB_HOST, // En Docker esto será 'postgres_db'
   database: process.env.DB_NAME,
   password: process.env.DB_PASSWORD,
   port: process.env.DB_PORT,
 });
-
 const SECRET_KEY = process.env.JWT_SECRET;
 
-// --- 3. CONFIGURACIÓN PASSPORT (GOOGLE OAUTH) ---
+
+// ==========================================
+// 4. CONEXIÓN BASE DE DATOS NOSQL (MongoDB) - (NUEVO)
+// ==========================================
+const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/uce_nosql_db';
+
+mongoose.connect(mongoUri)
+  .then(() => console.log('✅ Conectado a MongoDB Exitosamente'))
+  .catch(err => console.error('❌ Error conectando a MongoDB:', err));
+
+
+// ==========================================
+// 5. CONEXIÓN CACHÉ (Redis) - (NUEVO)
+// ==========================================
+const redisClient = createClient({
+  // En Docker, REDIS_HOST será 'redis_cache'
+  url: `redis://${process.env.REDIS_HOST || 'localhost'}:${process.env.REDIS_PORT || 6379}`
+});
+
+redisClient.on('error', (err) => console.log('❌ Error en Redis Client', err));
+
+// Iniciamos la conexión asíncrona a Redis
+(async () => {
+  try {
+    await redisClient.connect();
+    console.log('✅ Conectado a Redis Exitosamente');
+  } catch (error) {
+    console.log('⚠️ No se pudo conectar a Redis (Verificar contenedor)');
+  }
+})();
+
+
+// ==========================================
+// 6. ESTRATEGIA PASSPORT (GOOGLE OAUTH)
+// ==========================================
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
@@ -40,20 +99,19 @@ passport.use(new GoogleStrategy({
   },
   async (accessToken, refreshToken, profile, done) => {
     try {
-      // A. Buscar si el usuario ya existe con ese Google ID
+      // A. Buscar si existe por Google ID
       const res = await pool.query("SELECT * FROM users WHERE google_id = $1", [profile.id]);
       
       if (res.rows.length > 0) {
         return done(null, res.rows[0]);
       } 
       
-      // B. Si no tiene Google ID, buscar por email (para vincular cuentas)
+      // B. Buscar por email para vincular cuentas
       const email = profile.emails[0].value;
       const emailRes = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
       
       if (emailRes.rows.length > 0) {
         const user = emailRes.rows[0];
-        // Actualizamos el usuario para agregarle el Google ID y el Avatar
         await pool.query(
           "UPDATE users SET google_id = $1, avatar = $2 WHERE email = $3", 
           [profile.id, profile.photos[0]?.value, email]
@@ -61,8 +119,7 @@ passport.use(new GoogleStrategy({
         return done(null, user);
       } 
       
-      // C. Si no existe, crear usuario nuevo
-      // Nota: password es NULL porque entra con Google
+      // C. Crear usuario nuevo
       const newUser = await pool.query(
         "INSERT INTO users (email, google_id, role, avatar) VALUES ($1, $2, $3, $4) RETURNING *",
         [email, profile.id, 'user', profile.photos[0]?.value]
@@ -77,58 +134,62 @@ passport.use(new GoogleStrategy({
 ));
 
 
-// --- 4. CONEXIÓN DE RUTAS (Endpoints) ---
+// ==========================================
+// 7. RUTAS (ENDPOINTS)
+// ==========================================
 
-// A. RUTAS OAUTH (GOOGLE)
-// 1. Iniciar el flujo (Redirige a Google)
+// --- A. Rutas Google OAuth ---
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
-// 2. Callback (Google nos devuelve al usuario)
 app.get('/auth/google/callback', 
   passport.authenticate('google', { session: false, failureRedirect: 'http://localhost:5173/login?error=auth_failed' }),
   (req, res) => {
-    // Autenticación exitosa, generamos JWT
     const user = req.user;
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role }, 
       SECRET_KEY, 
       { expiresIn: '24h' }
     );
-
-    // Redirigimos al Frontend enviando el token en la URL
     res.redirect(`http://localhost:5173/login?token=${token}&role=${user.role}&email=${user.email}`);
   }
 );
 
-
-// B. RUTA DE UBICACIONES
+// --- B. Ruta de Ubicaciones ---
 app.use('/api/locations', locationRoutes); 
 
-// C. RUTA DE PRUEBA
+// --- C. Rutas de Prueba Generales ---
 app.get('/', (req, res) => {
-  res.send('Backend UCE funcionando correctamente 🚀');
+  res.send('Backend UCE (SQL + Mongo + Redis + Img) funcionando 🚀');
 });
 
-// D. RUTA DE REGISTRO
+// Prueba Rápida de Redis
+app.get('/test-redis', async (req, res) => {
+    try {
+        await redisClient.set('prueba_uce', 'Funciona el Caché');
+        const valor = await redisClient.get('prueba_uce');
+        res.json({ mensaje: 'Redis responde correctamente', valor });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
+// --- D. Registro de Usuario (Email/Pass) ---
 app.post('/register', async (req, res) => {
   try {
     const { email, password } = req.body;
     
-    // Validar si existe
     const userExist = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
     if (userExist.rows.length > 0) return res.status(400).json({ error: "Correo ya registrado" });
 
-    // Encriptar contraseña
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Guardar usuario
     const newUser = await pool.query(
       "INSERT INTO users (email, password, role) VALUES ($1, $2, $3) RETURNING *",
       [email, hashedPassword, 'user']
     );
 
-    // Generar token
     const token = jwt.sign({ id: newUser.rows[0].id, email: newUser.rows[0].email, role: 'user' }, SECRET_KEY, { expiresIn: '24h' });
     
     res.json({ message: "Usuario creado", token, role: 'user', email: newUser.rows[0].email });
@@ -138,7 +199,7 @@ app.post('/register', async (req, res) => {
   }
 });
 
-// E. RUTA DE LOGIN (Clásico)
+// --- E. Login (Email/Pass) ---
 app.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -148,7 +209,6 @@ app.post('/login', async (req, res) => {
 
     const user = userResult.rows[0];
 
-    // Si el usuario se creó con Google, puede no tener password
     if (!user.password) {
       return res.status(400).json({ error: "Usa el botón de Google para ingresar con este correo" });
     }
@@ -164,7 +224,7 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// F. RUTA DE VISITAS
+// --- F. Registrar Visita ---
 app.post('/visits', verifyToken, async (req, res) => {
   try {
     const { location_id } = req.body;
@@ -182,8 +242,7 @@ app.post('/visits', verifyToken, async (req, res) => {
   }
 });
 
-// G. RUTAS DE EVENTOS (CONECTADAS A SQL)
-// 1. Obtener Eventos
+// --- G. Eventos (SQL) ---
 app.get('/api/events', async (req, res) => {
   try {
     const query = `
@@ -200,7 +259,6 @@ app.get('/api/events', async (req, res) => {
   }
 });
 
-// 2. Crear Evento
 app.post('/api/events', verifyToken, async (req, res) => {
   try {
     const { title, description, date, location_id } = req.body;
@@ -212,8 +270,7 @@ app.post('/api/events', verifyToken, async (req, res) => {
 
     console.log("✅ Evento guardado en SQL ID:", newEvent.rows[0].id);
 
-    // --- Lógica de Correos ---
-    console.log("🔍 Buscando usuarios para notificar...");
+    // Notificación por correo
     const usersResult = await pool.query("SELECT email FROM users");
     const emailList = usersResult.rows.map(user => user.email);
 
@@ -228,9 +285,10 @@ app.post('/api/events', verifyToken, async (req, res) => {
   }
 });
 
-// --- INICIAR SERVIDOR ---
-const PORT = 5000;
+// ==========================================
+// 8. INICIAR SERVIDOR
+// ==========================================
 app.listen(PORT, () => {
   console.log(`🚀 Servidor Backend listo en http://localhost:${PORT}`);
-  console.log(`📡 Conectado a DB: ${process.env.DB_NAME} como ${process.env.DB_USER}`);
+  console.log(`📡 DB SQL: ${process.env.DB_HOST}`);
 });
