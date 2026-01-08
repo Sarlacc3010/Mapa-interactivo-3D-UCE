@@ -1,4 +1,4 @@
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 
 // --- 1. Librerías Gráficas (React Three Fiber) ---
 import { Canvas } from '@react-three/fiber';
@@ -18,15 +18,11 @@ import { AdminDashboard } from './components/AdminDashboard';
 // --- 5. Componentes de UI del Mapa ---
 import { SearchPanel } from './components/SearchPanel';
 import { BuildingInfoCard } from './components/BuildingInfoCard';
+import { EventsPopup } from './components/EventsPopup'; // <--- [NUEVO] Importamos el Popup
 import { ZoomControls, Instructions } from './components/Controls';
 
 // --- 6. Modelo 3D y Datos ---
 import Campus3D from './Campus3D'; 
-
-// [CAMBIO 1] ELIMINAMOS EL IMPORT ESTÁTICO DE './data/locations'
-// import { locations } from './data/locations'; 
-
-// [CAMBIO 2] IMPORTAMOS EL HOOK QUE CONECTA CON LA BASE DE DATOS
 import { useLocations } from './hooks/useLocations'; 
 
 // --- Loader de Carga ---
@@ -42,21 +38,32 @@ function Loader() {
 }
 
 export default function App() {
-  // [CAMBIO 3] INICIALIZAMOS EL HOOK AQUÍ
-  // Ahora 'locations' viene de MongoDB, no de un archivo local.
+  // Hook que trae las facultades de Mongo/Postgres
   const { locations } = useLocations();
   
-
   // --- ESTADOS ---
   const [userRole, setUserRole] = useState(null); 
   const [viewMode, setViewMode] = useState('map'); 
   const [showSearch, setShowSearch] = useState(false);
   const [selectedLoc, setSelectedLoc] = useState(null);
 
-  // Datos de prueba para el Dashboard (Eventos)
-  const [events, setEvents] = useState([
-    { id: 1, title: "Feria de Ciencias", location: "Facultad de Ingeniería", date: "2025-01-20", time: "10:00" }
-  ]);
+  // --- [NUEVO] Estados para el Pop-up de Eventos ---
+  const [showEventsModal, setShowEventsModal] = useState(false);
+  const [dbEvents, setDbEvents] = useState([]); // Eventos reales traídos del Backend
+
+  // --- [NUEVO] Efecto para cargar eventos reales al iniciar ---
+  useEffect(() => {
+    fetch('http://localhost:5000/api/events')
+      .then(res => res.json())
+      .then(data => setDbEvents(data))
+      .catch(err => console.error("Error cargando eventos:", err));
+  }, []);
+
+  // Función para manejar la apertura del modal desde la tarjeta
+  const handleShowEvents = (location) => {
+    setSelectedLoc(location); // Aseguramos que esté seleccionada
+    setShowEventsModal(true); // Abrimos el modal
+  };
 
   // --- 1. RENDERIZADO: PANTALLA DE LOGIN ---
   if (!userRole) {
@@ -76,9 +83,10 @@ export default function App() {
       <AdminDashboard
         onLogout={() => setUserRole(null)}
         onViewMap={() => setViewMode('map')}
-        events={events}
-        onAddEvent={(evt) => setEvents([...events, evt])}
-        onDeleteEvent={(id) => setEvents(events.filter(e => e.id !== id))}
+        // Pasamos los eventos reales al dashboard también
+        events={dbEvents} 
+        onAddEvent={(evt) => setDbEvents([...dbEvents, evt])} // Actualiza la lista local al crear
+        onDeleteEvent={(id) => setDbEvents(dbEvents.filter(e => e.id !== id))}
       />
     );
   }
@@ -97,7 +105,6 @@ export default function App() {
           <Suspense fallback={<Loader />}>
             <Campus3D 
               onEdificioClick={(name) => {
-                // Aquí usamos la lista 'locations' que vino de la base de datos
                 const loc = locations.find(l => l.name === name);
                 if (loc) setSelectedLoc(loc);
               }} 
@@ -162,10 +169,10 @@ export default function App() {
       {/* PANELES FLOTANTES */}
       <div className="absolute inset-0 z-10 pointer-events-none">
 
+        {/* Zona Interactiva (Buscador y Tarjetas) */}
         <div className="pointer-events-auto">
           {showSearch && (
             <SearchPanel
-              // Aquí pasamos la lista de la base de datos al buscador
               locations={locations} 
               onLocationSelect={(loc) => { setSelectedLoc(loc); setShowSearch(false); }}
               onClose={() => setShowSearch(false)}
@@ -176,10 +183,21 @@ export default function App() {
             <BuildingInfoCard
               location={selectedLoc}
               onClose={() => setSelectedLoc(null)}
+              // [NUEVO] Conectamos el botón de la tarjeta con la función del App
+              onShowEvents={handleShowEvents} 
             />
           )}
+          
+          {/* [NUEVO] Componente Pop-up de Eventos */}
+          <EventsPopup 
+            isOpen={showEventsModal}
+            onClose={() => setShowEventsModal(false)}
+            locationName={selectedLoc?.name} // Filtra eventos por el nombre del lugar actual
+            events={dbEvents}
+          />
         </div>
 
+        {/* Zona de Controles (Zoom, Instrucciones) */}
         <div className="pointer-events-auto">
           <Instructions />
           <ZoomControls />

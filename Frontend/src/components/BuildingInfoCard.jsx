@@ -1,7 +1,9 @@
 import React from 'react';
-import { X, Clock, Info, MapPin } from 'lucide-react';
+// 1. Agregamos 'Calendar' a los iconos
+import { X, Clock, Info, MapPin, Calendar } from 'lucide-react';
 
-export function BuildingInfoCard({ location, onClose }) {
+// 2. Recibimos la nueva prop 'onShowEvents'
+export function BuildingInfoCard({ location, onClose, onShowEvents }) {
   if (!location) return null;
 
   return (
@@ -15,8 +17,8 @@ export function BuildingInfoCard({ location, onClose }) {
             alt={location.name}
             className="w-full h-full object-cover"
             onError={(e) => {
-              e.target.onerror = null; // Evita bucles infinitos si esta también falla
-              e.target.src = "/images/placeholder.jpg";
+              e.target.onerror = null; 
+              e.target.src = "/images/placeholder.jpg"; // Asegúrate que esta ruta exista o usa una URL externa
             }}
           />
           <button
@@ -49,14 +51,21 @@ export function BuildingInfoCard({ location, onClose }) {
           )}
         </div>
 
-        <p className="text-sm text-gray-600 leading-relaxed">
+        <p className="text-sm text-gray-600 leading-relaxed line-clamp-3">
           {location.description}
         </p>
       </div>
 
-      {/* Footer de Acciones */}
+      {/* Footer de Acciones - AQUÍ ESTÁ EL CAMBIO IMPORTANTE */}
       <div className="p-3 bg-gray-50 border-t flex justify-between items-center">
-        <button className="text-xs text-blue-600 font-semibold hover:underline">Ver Eventos aquí</button>
+        <button 
+            // 3. Al hacer click, ejecutamos la función que abre el popup
+            onClick={() => onShowEvents(location)}
+            className="text-xs text-blue-600 font-bold hover:underline flex items-center gap-1.5 transition-colors hover:text-blue-800"
+        >
+            <Calendar className="w-3.5 h-3.5" /> {/* Icono añadido */}
+            Ver Eventos aquí
+        </button>
       </div>
     </div>
   );
