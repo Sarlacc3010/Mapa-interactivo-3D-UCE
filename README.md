@@ -1,238 +1,166 @@
-# 🗺️ 3D Interactive Map - Universidad Central del Ecuador (UCE)
+<div align="center">
 
-An interactive web platform that allows users to visualize the UCE campus in 3D, manage academic events, explore faculties, and manage institutional information through an advanced control panel.
+  <img src="https://upload.wikimedia.org/wikipedia/commons/e/e4/Escudo_de_la_Universidad_Central_del_Ecuador.svg" alt="Logo UCE" width="120" />
 
----
-
-## 🚀 Key Features
-
-* **Interactive 3D Map:** Immersive navigation using **React Three Fiber**.
-* **Event Management:** Complete CRUD system to create, edit, and delete events linked to faculties.
-* **Administrative Panel:**
-* Dashboard with metrics and charts (Recharts).
-* Location and event management.
-* Role-based authentication (Admin/User).
-
-
-* **Smart Search:** Filter faculties and services by name or category.
-* **Hybrid Authentication:** Traditional Login (Email/Password) and **Google OAuth**.
-* **Real-Time Information:** Visualization of schedules, descriptions, and future events via Pop-ups.
-* **Robust Architecture:**
-* **PostgreSQL:** Relational data (Users, Events, Visits).
-* **MongoDB:** Building metadata and flexible configurations.
-* **Redis:** Caching system to optimize location loading.
-* **Docker:** Full containerization of the development environment.
-
-
+  # 🗺️ UCE Campus 3D: Interactive Map
+  
+  **Plataforma de Visualización Inmersiva y Gestión Académica**
+  
+  ![React](https://img.shields.io/badge/Frontend-React%20%7C%20Vite-61DAFB?style=for-the-badge&logo=react)
+  ![Threejs](https://img.shields.io/badge/3D-Three.js%20%7C%20R3F-black?style=for-the-badge&logo=three.js)
+  ![Node](https://img.shields.io/badge/Backend-Node.js%20%7C%20Express-339933?style=for-the-badge&logo=node.js)
+  ![Docker](https://img.shields.io/badge/Infra-Docker%20%7C%20Nginx-2496ED?style=for-the-badge&logo=docker)
+  
+  <p align="center">
+    <a href="#-demo">Ver Demo</a> •
+    <a href="#-características">Características</a> •
+    <a href="#-instalación">Instalación</a> •
+    <a href="#-arquitectura">Arquitectura</a>
+  </p>
+</div>
 
 ---
 
-## 🛠️ Technologies Used
+## 📖 Descripción del Proyecto
 
-### Frontend
+**UCE Campus 3D** es una solución tecnológica avanzada diseñada para la **Universidad Central del Ecuador**. Moderniza la experiencia de navegación universitaria combinando un entorno tridimensional interactivo con un sistema robusto de gestión de eventos y facultades.
 
-* **React + Vite:** Fast development environment.
-* **Tailwind CSS:** Modern and responsive styling.
-* **React Three Fiber (Drei):** 3D rendering on the web.
-* **Lucide React:** Iconography.
-* **Recharts:** Data visualization and statistics.
+El sistema permite a estudiantes y visitantes recorrer el campus virtualmente, mientras que los administradores gestionan la información institucional mediante un panel de control seguro y métricas en tiempo real.
 
-### Backend
-
-* **Node.js + Express:** RESTful API server.
-* **PostgreSQL (pg):** Main database.
-* **MongoDB (Mongoose):** Secondary database (NoSQL).
-* **Redis:** Cache and session management.
-* **Passport.js:** Authentication strategies (JWT + Google).
-* **Multer:** Local image upload management.
-
-### Infrastructure (Docker)
-
-* **Docker Compose:** Service orchestration.
-* **PgAdmin 4:** Visual management for PostgreSQL.
-* **Mongo Express:** Visual management for MongoDB.
+> **Estado:** 🚀 Listo para Producción (Transición a JAMstack)
 
 ---
 
-## 📋 Prerequisites
+## 📸 Galería Visual
 
-Before starting, make sure you have installed:
-
-1. **Docker Desktop** (with Docker Compose).
-2. **Git**.
-3. **Node.js** (Optional, only if you want to run local commands outside Docker).
+| Vista Aérea del Campus | Panel Administrativo |
+|:---:|:---:|
+| <img src="https://via.placeholder.com/600x300/1e3a8a/ffffff?text=Vista+3D+del+Mapa" alt="Mapa 3D" width="100%"> | <img src="https://via.placeholder.com/600x300/D9232D/ffffff?text=Dashboard+Admin" alt="Dashboard" width="100%"> |
+| **Exploración Inmersiva** | **Gestión y Métricas** |
 
 ---
 
-## ⚙️ Installation and Setup
+## ⚡ Stack Tecnológico
 
-### 1. Clone the Repository
+El proyecto utiliza una arquitectura de microservicios contenerizada.
 
-git clone <YOUR_REPOSITORY_URL>
+| Área | Tecnologías |
+| :--- | :--- |
+| **Frontend 3D** | ![React](https://img.shields.io/badge/-React-black?logo=react) ![Tailwind](https://img.shields.io/badge/-Tailwind-black?logo=tailwindcss) ![R3F](https://img.shields.io/badge/-React%20Three%20Fiber-black) ![Recharts](https://img.shields.io/badge/-Recharts-black) |
+| **Backend API** | ![Node](https://img.shields.io/badge/-Node.js-black?logo=node.js) ![Express](https://img.shields.io/badge/-Express-black) ![Passport](https://img.shields.io/badge/-Passport.js-black) ![JWT](https://img.shields.io/badge/-JWT-black) |
+| **Data Layer** | ![Postgres](https://img.shields.io/badge/-PostgreSQL-black?logo=postgresql) ![Mongo](https://img.shields.io/badge/-MongoDB-black?logo=mongodb) ![Redis](https://img.shields.io/badge/-Redis-black?logo=redis) |
+| **DevOps** | ![Docker](https://img.shields.io/badge/-Docker-black?logo=docker) ![Nginx](https://img.shields.io/badge/-Nginx-black?logo=nginx) |
+
+---
+
+## 🚀 Características Clave
+
+### 🔵 Experiencia de Usuario (Estudiantes)
+* **Navegación 3D Fluida:** Zoom, rotación y paneo con controles orbitales optimizados.
+* **Smart Search:** Buscador instantáneo de facultades, bibliotecas y servicios.
+* **Eventos en Contexto:** Pop-ups informativos sobre actividades al hacer clic en edificios.
+* **Diseño Responsivo:** Adaptado a móviles y escritorio.
+
+### 🔴 Panel de Administración (Gestores)
+* **Dashboard de Métricas:** Gráficos de visitas y distribución de eventos.
+* **CRUD de Eventos:** Creación, edición y eliminación de agenda académica.
+* **Gestión de Ubicaciones:** Actualización de información de edificios.
+* **Seguridad:** Login híbrido (Google OAuth + Credenciales Institucionales).
+
+---
+
+## 🛠️ Instalación y Despliegue
+
+Sigue estos pasos para levantar el entorno completo usando **Docker**.
+
+### 1. Prerrequisitos
+* Docker Desktop (Running)
+* Git
+
+### 2. Clonar y Configurar
+```bash
+git clone [https://github.com/tu-usuario/uce-mapa-3d.git](https://github.com/tu-usuario/uce-mapa-3d.git)
 cd uce-mapa-3d
 
-### 2. Environment Variables Configuration
+```
 
-Create a `.env` file inside the `Backend/` folder with the following content.
-*(Make sure to change the Google credentials to your own)*.
+Crea un archivo `.env` en la carpeta `Backend/`:
 
-env
-# --- SQL DATABASE (Postgres) ---
+```env
+# Database Config
 DB_HOST=postgres_db
 DB_USER=admin_sql
 DB_PASSWORD=password_sql
 DB_NAME=uce_main_db
-DB_PORT=5432
 
-# --- NOSQL DATABASE (Mongo) ---
+# NoSQL & Cache
 MONGO_URI=mongodb://admin_mongo:password_mongo@mongo_db:27017/uce_nosql_db?authSource=admin
-
-# --- REDIS (Cache) ---
 REDIS_HOST=redis_cache
-REDIS_PORT=6379
 
-# --- SECURITY ---
-JWT_SECRET=your_super_secure_secret_change_this
+# Auth keys
+JWT_SECRET=secret_key
+GOOGLE_CLIENT_ID=xxx
+GOOGLE_CLIENT_SECRET=xxx
 
-# --- GOOGLE OAUTH ---
-GOOGLE_CLIENT_ID=your_google_client_id_here
-GOOGLE_CLIENT_SECRET=your_google_client_secret_here
+```
 
+### 3. Ejecutar Contenedores
 
-### 3. Prepare Image Folder
+Este comando construye el Frontend (JAMstack build), levanta el Backend y las Bases de Datos.
 
-For image persistence to work correctly, create the folder in the project root:
-
-mkdir uploads
-
-
-*Note: Images saved here will automatically sync with the Backend container.*
-
-### 4. Run the Project with Docker
-
-Start all services (Frontend, Backend, Databases, Viewers) with a single command:
-
+```bash
 docker-compose up -d --build
 
+```
 
-*The `--build` flag is important the first time to install dependencies.*
+### 4. Acceder a los Servicios
 
----
-
-## 🗄️ Database Initialization (SQL)
-
-Once the containers are running, you need to create the tables in PostgreSQL.
-
-1. Open **PgAdmin** in your browser: `http://localhost:5050`
-* **Email:** `admin-mapa@uce.edu.ec`
-* **Password:** `admin`
-
-
-2. Connect to the server (Host: `postgres_db`, User: `admin_sql`, Pass: `password_sql`).
-3. Open the **Query Tool** on the `uce_main_db` database and run this script:
-
-sql
--- Users Table
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    password VARCHAR(255),
-    google_id VARCHAR(255),
-    role VARCHAR(50) DEFAULT 'user', -- 'admin' or 'user'
-    avatar TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Locations Table (Synced with Frontend IDs)
-CREATE TABLE locations (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    category VARCHAR(100),
-    description TEXT,
-    image_url TEXT,
-    schedule VARCHAR(100)
-);
-
--- Events Table
-CREATE TABLE events (
-    id SERIAL PRIMARY KEY,
-    title VARCHAR(255) NOT NULL,
-    description TEXT,
-    date DATE,
-    time TIME,
-    location_id INTEGER REFERENCES locations(id),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Insert Default Admin User (Password: 123456)
--- Note: In production use the app registration so the password gets hashed.
-INSERT INTO locations (id, name, category) VALUES (6, 'Facultad de Ingeniería y Ciencias Aplicadas', 'Académico');
-
----
-
-## 🖥️ Accessing the Application
-
-Once deployed, you can access the following services:
-
-| Service | Local URL | Description |
+| Servicio | URL | Descripción |
 | --- | --- | --- |
-| **Web App (Frontend)** | `http://localhost:5173` | Main application (Map). |
-| **API (Backend)** | `http://localhost:5000` | Data server. |
-| **PgAdmin 4** | `http://localhost:5050` | Visual manager for PostgreSQL. |
-| **Mongo Express** | `http://localhost:8081` | Visual manager for MongoDB. |
+| ** 🌍 Web App** | `http://localhost:80` | Portal principal (Nginx) |
+| ** 🔌 API Server** | `http://localhost:5000` | Endpoints REST |
+| ** 🐘 PgAdmin** | `http://localhost:5050` | Admin SQL (`admin-mapa@uce.edu.ec` / `admin`) |
+| ** 🍃 Mongo Express** | `http://localhost:8081` | Admin NoSQL |
 
 ---
 
-## 📂 Project Structure
+## 🏛️ Arquitectura de Datos
 
-/
-├── Backend/
-│   ├── config/             # DB Connections (Mongo, Redis)
-│   ├── models/             # Mongoose Models
-│   ├── public/uploads/     # Mapped folder for images
-│   ├── routes/             # API Routes (locations, events)
-│   ├── index.js            # Server entry point
-│   └── Dockerfile
-│
-├── Frontend/
-│   ├── src/
-│   │   ├── components/     # UI (Cards, Popups, Dashboard)
-│   │   ├── hooks/          # Custom Hooks (useLocations)
-│   │   ├── Campus3D.jsx    # 3D Model
-│   │   └── App.jsx         # Main Component
-│   └── Dockerfile
-│
-├── uploads/                # Local folder for image persistence
-└── docker-compose.yml      # Container orchestration
+El sistema utiliza una estrategia de persistencia híbrida para maximizar el rendimiento:
+
+1. **PostgreSQL (Relacional):**
+* Manejo de integridad crítica: `Usuarios`, `Roles`, `Eventos`, `Relación Edificio-Evento`.
 
 
----
-
-## ✨ How to Use
-
-1. **Explore:** Go to `localhost:5173`. Use the mouse to rotate and zoom in on the campus.
-2. **Search:** Click on the magnifying glass to search for specific faculties.
-3. **View Details:** Click on a 3D building or a search result to view its information card.
-4. **Admin Login:**
-* Register or log in with Google.
-* If your user has the `admin` role (you can manually change this in the DB for now), you will see the gear button in the top right corner.
+2. **MongoDB (Documental):**
+* Información flexible de edificios: `Coordenadas 3D`, `Metadatos`, `Historial de cambios`.
 
 
-5. **Admin Panel:**
-* View visit statistics.
-* Create new events by selecting the faculty.
-* Edit or delete existing events.
+3. **Redis (Key-Value):**
+* Caché de consultas frecuentes (Lista de Facultades) para reducir latencia.
 
 
 
 ---
 
-## 🐛 Troubleshooting Common Issues
+## 🤝 Contribución
 
-* **DB Connection Error:** Ensure that the `postgres_db` and `mongo_db` containers are in "Healthy" or "Running" state.
-* **CORS Error:** If you see errors in the browser console, verify that `Backend/index.js` has `app.use(cors())` configured.
-* **Images not loading:** Verify that the `uploads` folder exists in the root and has read/write permissions.
+Las contribuciones son bienvenidas. Por favor, sigue estos pasos:
+
+1. Haz un Fork del proyecto.
+2. Crea tu rama de funcionalidad (`git checkout -b feature/AmazingFeature`).
+3. Commit a tus cambios (`git commit -m 'Add some AmazingFeature'`).
+4. Push a la rama (`git push origin feature/AmazingFeature`).
+5. Abre un Pull Request.
 
 ---
 
-Developed for **Universidad Central del Ecuador**. 🎓
+<div align="center">
+<small>Desarrollado con ❤️ para la <b>Universidad Central del Ecuador</b></small>
+
+
+
+
+
+<small>2025 © Todos los derechos reservados</small>
+</div>
