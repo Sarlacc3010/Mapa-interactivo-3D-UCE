@@ -1,10 +1,10 @@
 import React, { useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
-import { locations } from './data/locations';
+import { useGLTF } from '@react-three/drei';
+import { locations } from './data/locations'; // Asegúrate de que este archivo exista
 
-export default function Campus3D({ onEdificioClick, events, onEventFound }) {
+export default function Campus3D({ onEdificioClick, events = [], onEventFound }) {
   const { scene } = useGLTF('/mapa_uce.glb');
   const { camera } = useThree(); 
 
@@ -15,21 +15,25 @@ export default function Campus3D({ onEdificioClick, events, onEventFound }) {
     const userPos = camera.position;
 
     locations.forEach((loc) => {
-      const position = loc.position || [0, 0, 0];
-      const buildingPos = new THREE.Vector3(position[0], position[1], position[2]);
+      // Validación de seguridad por si loc.position no existe
+      if (!loc.position) return;
+
+      const buildingPos = new THREE.Vector3(loc.position[0], loc.position[1], loc.position[2]);
       const distance = userPos.distanceTo(buildingPos);
 
       // --- 1. ALERTA DE EVENTO (15m) ---
       if (distance < 15) {
         if (!notified.current.has(loc.id)) {
-          const eventHere = events && events.find(e => 
-            (e.location && loc.name && e.location.toLowerCase().includes(loc.name.toLowerCase())) || 
-            e.location === loc.id
+          // Buscamos si hay un evento en esta ubicación
+          const eventHere = events.find(e => 
+            (e.location_name && e.location_name === loc.name) || 
+            (e.location_id && String(e.location_id) === String(loc.id))
           );
 
-          if (eventHere) {
+          if (eventHere && onEventFound) {
             onEventFound(eventHere);
             notified.current.add(loc.id);
+            // No volver a notificar por 1 minuto
             setTimeout(() => notified.current.delete(loc.id), 60000);
           }
         }
@@ -40,23 +44,24 @@ export default function Campus3D({ onEdificioClick, events, onEventFound }) {
         if (!visited.current.has(loc.id)) {
           console.log(`📍 Visitando: ${loc.name}`);
           
-          // === RECUPERAR EL TOKEN DEL NAVEGADOR ===
           const token = localStorage.getItem('token');
           
-          fetch('http://localhost:5000/visits', {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              // === ENVIAR TOKEN AL BACKEND ===
-              'Authorization': `Bearer ${token}` 
-            },
-            body: JSON.stringify({
-              location_id: loc.name
-              // Ya no enviamos user_email aquí, el backend lo saca del token
-            })
-          }).catch(err => console.error("Error API:", err));
+          // Solo intentamos registrar si hay token (usuario logueado)
+          if (token) {
+            fetch('http://localhost:5000/visits', {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` 
+              },
+              body: JSON.stringify({
+                location_id: loc.id // Usamos el ID, no el nombre
+              })
+            }).catch(err => console.error("Error registrando visita:", err));
+          }
 
           visited.current.add(loc.id); 
+          // No volver a registrar visita por 2 minutos
           setTimeout(() => visited.current.delete(loc.id), 120000);
         }
       }
@@ -87,4 +92,5 @@ export default function Campus3D({ onEdificioClick, events, onEventFound }) {
   );
 }
 
+// Pre-carga del modelo para mejorar el rendimiento
 useGLTF.preload('/mapa_uce.glb');

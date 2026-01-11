@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-// Asegúrate de que estas rutas sean correctas según tu estructura de carpetas
 import { Button, Input, Label } from "./ui/shim"; 
 import { Header } from "./Header";
 import { Footer } from "./Footer";

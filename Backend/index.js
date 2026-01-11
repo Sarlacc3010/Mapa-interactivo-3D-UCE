@@ -5,6 +5,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const cookieParser = require('cookie-parser');
 require('dotenv').config();
 
 // --- NUEVOS IMPORTS (MONGO, REDIS, ARCHIVOS) ---
@@ -24,9 +25,13 @@ const PORT = 5000;
 // ==========================================
 // 1. MIDDLEWARES GLOBALES
 // ==========================================
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'], // Tu frontend
+  credentials: true // Permite el paso de cookies
+}));
 app.use(express.json());
 app.use(passport.initialize());
+app.use(cookieParser());
 
 // ==========================================
 // 2. CONFIGURACIÓN DE IMÁGENES (NUEVO)
