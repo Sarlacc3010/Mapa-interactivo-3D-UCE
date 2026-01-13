@@ -1,21 +1,17 @@
 const jwt = require('jsonwebtoken');
 
 const verifyToken = (req, res, next) => {
-  // 1. Intentamos leer el token de la cookie
+  // BUSCAMOS EL TOKEN EN LAS COOKIES
   const token = req.cookies.access_token;
 
   if (!token) {
-    return res.status(401).json({ error: "Acceso denegado: No has iniciado sesión" });
+    return res.status(401).json({ error: "Acceso denegado: No hay sesión activa" });
   }
 
   try {
-    // 2. Verificamos el token
     const verified = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // 3. Guardamos los datos del usuario en la request para usarlos luego
-    req.user = verified;
-    
-    next(); // Continuar a la siguiente función
+    req.user = verified; // Agregamos los datos del usuario a la request
+    next(); // Continuamos
   } catch (error) {
     res.status(400).json({ error: "Token inválido o expirado" });
   }

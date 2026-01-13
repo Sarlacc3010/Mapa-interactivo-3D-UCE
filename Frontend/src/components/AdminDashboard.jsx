@@ -1,17 +1,17 @@
 import React, { useState } from "react";
 import { Button, Input, Card, Badge } from "./ui/shim";
 import { 
-  LogOut, Map, Plus, Trash2, Calendar, MapPin, Loader2, 
-  LayoutDashboard, Megaphone, Users, TrendingUp, PieChart as PieIcon 
+  LogOut, Map, Plus, Trash2, Calendar, MapPin, Edit, X,
+  LayoutDashboard, Megaphone, TrendingUp 
 } from "lucide-react";
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, Legend 
 } from 'recharts';
 
 import { useLocations } from "../hooks/useLocations"; 
 
-// Datos "Mock" para los gráficos (luego se pueden conectar a API real)
+// Datos estáticos
 const DATA_VISITAS = [
   { name: 'Fac. Artes', visitas: 420 },
   { name: 'Biblio. Central', visitas: 350 },
@@ -26,65 +26,89 @@ const DATA_CATEGORIAS = [
 ];
 const COLORS = ['#1e3a8a', '#D9232D', '#10B981', '#F59E0B'];
 
-export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDeleteEvent }) {
-  const [activeTab, setActiveTab] = useState('events'); // Empezamos en eventos para que lo veas rápido
+export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDeleteEvent, onUpdateEvent }) {
+  const [activeTab, setActiveTab] = useState('events');
   const { locations, loading: loadingLocs } = useLocations(); 
 
-  // Estado del formulario
   const [newEvent, setNewEvent] = useState({ 
-    title: "", 
-    description: "", 
-    location_id: "", // <--- CAMBIO 1: Usamos location_id en lugar de location
-    date: "", 
-    time: "" 
+    title: "", description: "", location_id: "", date: "", time: "" 
   });
   
+  const [editingId, setEditingId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false); 
 
+  // --- PREPARAR EDICIÓN ---
+  const handleEditClick = (event) => {
+    setEditingId(event.id);
+    setNewEvent({
+        title: event.title || "",
+        description: event.description || "",
+        location_id: event.location_id ? String(event.location_id) : "", 
+        // Cortamos la fecha para que encaje en el input type="date"
+        date: event.date ? event.date.split('T')[0] : "",
+        time: event.time || ""
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelEdit = () => {
+      setEditingId(null);
+      setNewEvent({ title: "", description: "", location_id: "", date: "", time: "" });
+  };
+
+  // --- ENVIAR FORMULARIO (CREAR O EDITAR) ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    const token = localStorage.getItem('token');
     
     try {
-      // Validamos que sea un número
       if(!newEvent.location_id) {
           alert("Por favor selecciona una ubicación válida");
           setIsSubmitting(false);
           return;
       }
 
-      const response = await fetch('http://localhost:5000/api/events', {
-        method: 'POST',
+      const url = editingId 
+        ? `http://localhost:5000/api/events/${editingId}`
+        : 'http://localhost:5000/api/events';
+      
+      const method = editingId ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method: method,
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
+          // NO usamos Authorization header, usamos cookies
         },
+        credentials: 'include', // <--- IMPORTANTE PARA COOKIES
         body: JSON.stringify({
             title: newEvent.title,
             description: newEvent.description,
             date: newEvent.date,
-            time: newEvent.time,
-            location_id: parseInt(newEvent.location_id) // <--- CAMBIO 2: Enviamos el ID numérico
+            time: newEvent.time, // <--- Aquí enviamos la hora
+            location_id: parseInt(newEvent.location_id)
         })
       });
 
       if (response.ok) {
         const eventData = await response.json();
-        // El backend nos devuelve el evento creado. 
-        // TRUCO: Como el backend recién creado no trae el "location_name" (porque eso viene del JOIN),
-        // lo inyectamos manualmente para que se vea bien en la lista sin recargar.
+        
+        // Inyectamos nombre de ubicación para mostrarlo sin recargar
         const locationName = locations.find(l => l.id == newEvent.location_id)?.name || "Ubicación";
         const eventoCompleto = { ...eventData, location_name: locationName };
 
-        onAddEvent(eventoCompleto); 
+        if (editingId) {
+            if(onUpdateEvent) onUpdateEvent(eventoCompleto);
+            alert("✅ Evento actualizado correctamente");
+        } else {
+            onAddEvent(eventoCompleto); 
+            alert("✅ Evento creado correctamente");
+        }
         
-        // Limpiamos
-        setNewEvent({ title: "", description: "", location_id: "", date: "", time: "" });
-        alert("✅ Evento creado y vinculado correctamente");
+        handleCancelEdit(); 
       } else {
         const err = await response.json();
-        alert("Error: " + (err.error || "No se pudo crear"));
+        alert("Error: " + (err.error || "No se pudo procesar"));
       }
     } catch (error) {
       console.error(error);
@@ -94,10 +118,29 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
     }
   };
 
+  // --- ELIMINAR ---
+  const handleDelete = async (id) => {
+      if(!confirm("¿Estás seguro de eliminar?")) return;
+
+      try {
+          const res = await fetch(`http://localhost:5000/api/events/${id}`, {
+              method: 'DELETE',
+              credentials: 'include'
+          });
+          if(res.ok) onDeleteEvent(id);
+          else alert("Error al eliminar");
+      } catch(e) { console.error(e); }
+  };
+
+  // Función auxiliar para mostrar la fecha bonita en la tarjeta
+  const formatDate = (isoString) => {
+      if (!isoString) return "";
+      return isoString.split('T')[0];
+  };
+
   return (
     <div className="flex h-screen bg-gray-50 font-sans overflow-hidden">
       
-      {/* SIDEBAR */}
       <aside className="w-64 bg-[#1e3a8a] text-white flex flex-col shadow-2xl z-20 shrink-0">
         <div className="p-6 flex items-center gap-3 border-b border-blue-800">
            <div className="w-8 h-8 bg-[#D9232D] rounded-lg flex items-center justify-center font-bold shadow-md">A</div>
@@ -118,7 +161,6 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
         </div>
       </aside>
 
-      {/* ÁREA PRINCIPAL */}
       <main className="flex-1 flex flex-col overflow-hidden relative">
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 shadow-sm shrink-0">
            <h2 className="text-xl font-bold text-gray-800 capitalize">
@@ -131,8 +173,6 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
         </header>
 
         <div className="flex-1 overflow-y-auto p-6 lg:p-8 bg-gray-50">
-            
-            {/* VISTA DASHBOARD */}
             {activeTab === 'dashboard' && (
                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -140,6 +180,7 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
                       <StatCard title="Ubicaciones" value={locations.length} icon={MapPin} color="bg-red-500" />
                       <StatCard title="Visitas" value="1,392" icon={TrendingUp} color="bg-green-500" />
                   </div>
+                  {/* ... Gráficas (igual que antes) ... */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-80">
                       <h3 className="font-bold text-gray-800 mb-4">Top Lugares</h3>
@@ -168,16 +209,25 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
                </div>
             )}
 
-            {/* VISTA EVENTOS */}
             {activeTab === 'events' && (
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 animate-in fade-in zoom-in duration-300">
-                  
-                  {/* FORMULARIO */}
                   <div className="xl:col-span-1">
-                    <Card className="p-6 sticky top-6 shadow-lg border-blue-100">
-                      <div className="mb-6 pb-4 border-b border-gray-100">
-                         <h2 className="font-bold text-[#1e3a8a] text-lg flex items-center gap-2"><Plus className="w-5 h-5" /> Crear Evento</h2>
-                         <p className="text-xs text-gray-400 mt-1">Completa los datos para publicar.</p>
+                    <Card className="p-6 sticky top-6 shadow-lg border-blue-100 transition-all duration-300">
+                      <div className="mb-6 pb-4 border-b border-gray-100 flex justify-between items-start">
+                         <div>
+                            <h2 className="font-bold text-[#1e3a8a] text-lg flex items-center gap-2">
+                                {editingId ? <Edit className="w-5 h-5 text-orange-500" /> : <Plus className="w-5 h-5" />} 
+                                {editingId ? "Editar Evento" : "Crear Evento"}
+                            </h2>
+                            <p className="text-xs text-gray-400 mt-1">
+                                {editingId ? "Modifica los detalles abajo." : "Completa los datos para publicar."}
+                            </p>
+                         </div>
+                         {editingId && (
+                             <button onClick={handleCancelEdit} className="text-xs text-red-500 hover:bg-red-50 px-2 py-1 rounded flex items-center gap-1">
+                                 <X size={14} /> Cancelar
+                             </button>
+                         )}
                       </div>
                       
                       <form onSubmit={handleSubmit} className="space-y-5">
@@ -196,7 +246,6 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
                             disabled={loadingLocs}
                           >
                               <option value="">Seleccionar Facultad...</option>
-                              {/* CAMBIO 3: Usamos loc.id como value */}
                               {locations.map((loc) => (
                                 <option key={loc.id || loc._id} value={loc.id || loc._id}>
                                     {loc.name}
@@ -215,14 +264,21 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
                           <Input type="date" required value={newEvent.date} onChange={e => setNewEvent({...newEvent, date: e.target.value})} />
                           <Input type="time" required value={newEvent.time} onChange={e => setNewEvent({...newEvent, time: e.target.value})} />
                         </div>
-                        <Button type="submit" className="w-full mt-4 bg-[#1e3a8a]" disabled={isSubmitting}>
-                          {isSubmitting ? "Guardando..." : "Publicar"}
+                        
+                        <Button 
+                            type="submit" 
+                            className={`w-full mt-4 ${editingId ? "bg-orange-500 hover:bg-orange-600" : "bg-[#1e3a8a]"}`} 
+                            disabled={isSubmitting}
+                        >
+                          {isSubmitting 
+                             ? "Procesando..." 
+                             : (editingId ? "Actualizar Evento" : "Publicar Evento")
+                          }
                         </Button>
                       </form>
                     </Card>
                   </div>
 
-                  {/* LISTA DE EVENTOS */}
                   <div className="xl:col-span-2 space-y-6">
                     <div className="flex justify-between items-end border-b border-gray-200 pb-2">
                         <h2 className="font-bold text-gray-800 text-lg">Agenda</h2>
@@ -233,22 +289,39 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {events.map(event => (
-                          <div key={event.id || event._id} className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm relative group hover:border-[#D9232D] transition-colors">
-                            <h3 className="font-bold text-gray-800">{event.title}</h3>
+                          <div 
+                             key={event.id || event._id} 
+                             className={`bg-white p-5 rounded-xl border shadow-sm relative group transition-colors ${editingId === event.id ? 'border-orange-500 ring-1 ring-orange-500' : 'border-gray-100 hover:border-[#D9232D]'}`}
+                          >
+                            <h3 className="font-bold text-gray-800 pr-16">{event.title}</h3>
                             <p className="text-sm text-gray-500 mb-2 line-clamp-2">{event.description}</p>
                             <div className="text-xs text-gray-600 flex flex-col gap-1">
-                               {/* CAMBIO 4: Leemos location_name o mostramos alerta si falta */}
                                <span className="flex items-center gap-1 font-semibold text-[#1e3a8a]">
                                   <MapPin className="w-3.5 h-3.5" /> 
-                                  {event.location_name || "⚠️ Ubicación no vinculada"}
+                                  {event.location_name || "⚠️ Sin Ubicación"}
                                </span>
                                <span className="flex items-center gap-1">
-                                  <Calendar className="w-3.5 h-3.5" /> {event.date} • {event.time}
+                                  {/* CORREGIDO: MOSTRAR FECHA FORMATEADA Y HORA */}
+                                  <Calendar className="w-3.5 h-3.5" /> {formatDate(event.date)} • {event.time || "--:--"}
                                </span>
                             </div>
-                            <button onClick={() => onDeleteEvent(event.id)} className="absolute top-4 right-4 text-gray-300 hover:text-red-500 transition-colors">
-                               <Trash2 className="w-4 h-4" />
-                            </button>
+
+                            <div className="absolute top-4 right-4 flex gap-1">
+                                <button 
+                                    onClick={() => handleEditClick(event)} 
+                                    className="p-2 text-gray-300 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-colors"
+                                    title="Editar"
+                                >
+                                   <Edit className="w-4 h-4" />
+                                </button>
+                                <button 
+                                    onClick={() => handleDelete(event.id)} 
+                                    className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                    title="Eliminar"
+                                >
+                                   <Trash2 className="w-4 h-4" />
+                                </button>
+                            </div>
                           </div>
                         ))}
                       </div>

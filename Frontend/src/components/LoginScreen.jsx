@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Button, Input, Label } from "./ui/shim"; 
 import { Header } from "./Header";
 import { Footer } from "./Footer";
 import { UCELogoImage } from "./UCELogoImage";
-
-// Importamos hooks de router para leer la URL y navegar
-import { useSearchParams, useNavigate } from 'react-router-dom';
+// Nota: Ya no importamos useSearchParams porque App.jsx maneja la sesión
+import { useNavigate } from 'react-router-dom';
 
 export function LoginScreen({ onLogin }) {
   const [isRegistering, setIsRegistering] = useState(false);
@@ -19,31 +18,7 @@ export function LoginScreen({ onLogin }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Hooks para manejar el retorno de Google
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-
-  // --- EFECTO 1: Capturar token de Google si viene en la URL ---
-  useEffect(() => {
-    const token = searchParams.get("token");
-    const role = searchParams.get("role");
-    const userEmail = searchParams.get("email");
-
-    if (token) {
-      // Guardamos en localStorage
-      localStorage.setItem('token', token);
-      if (userEmail) localStorage.setItem('userEmail', userEmail);
-      
-      // Actualizamos estado global de App
-      onLogin(role, userEmail);
-      
-      // Limpiamos la URL para que no se vea el token feo
-      navigate("/", { replace: true });
-    }
-  }, [searchParams, onLogin, navigate]);
-
-
-  // --- MANEJO DEL SUBMIT (Login/Registro Tradicional) ---
+  // MANEJO DEL SUBMIT (Login/Registro con Cookies)
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -55,52 +30,44 @@ export function LoginScreen({ onLogin }) {
     }
     
     setLoading(true);
-    // Definimos a qué endpoint golpear según el modo
-    const endpoint = isRegistering ? '/register' : '/login';
+    const endpoint = isRegistering ? '/api/register' : '/api/login';
     
     try {
       const response = await fetch(`http://localhost:5000${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Cookies HttpOnly
         body: JSON.stringify({ email, password }),
       });
       
       const data = await response.json();
       
       if (response.ok) {
-        // Guardamos credenciales
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('userEmail', data.email);
-        
         // Notificamos al componente padre
-        onLogin(data.role, data.email);
+        onLogin(data.user.role);
       } else {
-        // Mostramos error del backend
         setError(data.error || "Ocurrió un error inesperado");
       }
     } catch (err) {
-      setError("Error de conexión con el servidor (Backend caído o red)");
+      console.error(err);
+      setError("Error de conexión con el servidor");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    // CONTENEDOR PRINCIPAL: min-h-screen asegura que el fondo cubra todo
     <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-[#1e3a8a] to-[#D9232D] relative overflow-hidden">
       
-      {/* Cabecera */}
       <Header>
          <div className="hidden sm:block text-white/80 text-xs font-medium cursor-pointer hover:text-white transition-colors">
             Ayuda / Soporte
          </div>
       </Header>
       
-      {/* Contenido Central */}
       <main className="flex-1 flex items-center justify-center p-4 z-10">
        <div className="w-full max-w-md p-8 bg-white/95 backdrop-blur rounded-2xl shadow-2xl animate-in fade-in zoom-in duration-300">
           
-          {/* Logo y Títulos */}
           <div className="text-center mb-6">
             <div className="flex justify-center mb-2">
               <UCELogoImage className="w-28 h-auto" />
@@ -113,10 +80,8 @@ export function LoginScreen({ onLogin }) {
             </p>
           </div>
 
-          {/* Formulario */}
           <form onSubmit={handleSubmit} className="space-y-4">
             
-            {/* Input Email */}
             <div className="space-y-1.5">
               <Label>Correo Institucional</Label>
               <Input 
@@ -129,7 +94,6 @@ export function LoginScreen({ onLogin }) {
               />
             </div>
             
-            {/* Input Password */}
             <div className="space-y-1.5">
               <Label>Contraseña</Label>
               <Input 
@@ -142,7 +106,6 @@ export function LoginScreen({ onLogin }) {
               />
             </div>
 
-            {/* Input Confirmar Password (Solo Registro) */}
             {isRegistering && (
               <div className="space-y-1.5 animate-in slide-in-from-top-2">
                 <Label>Confirmar Contraseña</Label>
@@ -157,14 +120,12 @@ export function LoginScreen({ onLogin }) {
               </div>
             )}
 
-            {/* Mensaje de Error */}
             {error && (
                 <div className="p-3 rounded-lg bg-red-50 text-red-600 text-xs font-bold text-center border border-red-100">
                     ⚠️ {error}
                 </div>
             )}
             
-            {/* Botón Principal */}
             <Button 
                 type="submit" 
                 className="w-full h-11 mt-4 shadow-lg hover:shadow-blue-500/25 transition-all bg-[#1e3a8a] hover:bg-[#152c6e]" 
@@ -176,8 +137,6 @@ export function LoginScreen({ onLogin }) {
               }
             </Button>
 
-            {/* --- SECCIÓN OAUTH (GOOGLE) --- */}
-            {/* Solo mostramos Google si NO estamos registrando manualmente, para no saturar */}
             {!isRegistering && (
                 <div className="mt-4">
                   <div className="relative mb-4">
@@ -191,7 +150,6 @@ export function LoginScreen({ onLogin }) {
                   
                   <button
                     type="button"
-                    // IMPORTANTE: Esta URL debe coincidir con tu backend
                     onClick={() => window.location.href = "http://localhost:5000/auth/google"}
                     className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 text-gray-700 font-medium py-2.5 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
                   >
@@ -202,7 +160,6 @@ export function LoginScreen({ onLogin }) {
             )}
           </form>
 
-          {/* Toggle Login/Registro */}
           <div className="mt-6 pt-4 border-t border-gray-100 text-center">
              <button 
                 onClick={() => { setIsRegistering(!isRegistering); setError(""); }} 

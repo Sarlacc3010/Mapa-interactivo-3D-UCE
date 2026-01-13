@@ -22,8 +22,8 @@ const Campus3D = lazy(() => import('./Campus3D'));
 function ScreenLoader() {
   return (
     <div className="flex h-screen w-full flex-col items-center justify-center bg-gray-900 text-white gap-4">
-       <div className="w-12 h-12 border-4 border-[#D9232D] border-t-transparent rounded-full animate-spin"></div>
-       <div className="animate-pulse font-bold tracking-widest text-sm">CARGANDO INTERFAZ...</div>
+      <div className="w-12 h-12 border-4 border-[#D9232D] border-t-transparent rounded-full animate-spin"></div>
+      <div className="animate-pulse font-bold tracking-widest text-sm">CARGANDO INTERFAZ...</div>
     </div>
   );
 }
@@ -52,18 +52,27 @@ export default function App() {
   // Al recargar, preguntamos al backend si la cookie es válida
   useEffect(() => {
     const checkSession = async () => {
-        try {
-            const res = await fetch('http://localhost:5000/api/profile', {
-                credentials: 'include' // Envía la cookie automáticamente
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setUserRole(data.user.role);
-            }
-        } catch (error) {
-            // No hay sesión, nos quedamos en null (Login)
-            console.log("No hay sesión activa");
+      try {
+        const res = await fetch('http://localhost:5000/api/profile', {
+          credentials: 'include' // Envía la cookie automáticamente
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setUserRole(data.user.role);
+
+          // === NUEVO: LIMPIEZA DE URL ===
+          // Si la URL tiene ?loginSuccess, la limpiamos AHORA MISMO
+          // para que al hacer logout en el futuro no nos vuelva a meter.
+          const params = new URLSearchParams(window.location.search);
+          if (params.get('loginSuccess')) {
+            window.history.replaceState({}, document.title, "/");
+          }
         }
+
+      } catch (error) {
+        // No hay sesión, nos quedamos en null (Login)
+        console.log("No hay sesión activa");
+      }
     };
     checkSession();
   }, []);
@@ -79,13 +88,13 @@ export default function App() {
   // Logout seguro
   const handleLogout = async () => {
     try {
-        await fetch('http://localhost:5000/api/logout', { 
-            method: 'POST', 
-            credentials: 'include' 
-        });
-        setUserRole(null);
-    } catch(e) {
-        console.error(e);
+      await fetch('http://localhost:5000/api/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
+      setUserRole(null);
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -95,7 +104,7 @@ export default function App() {
   };
 
   // --- RENDERIZADO ---
-  
+
   if (!userRole) {
     return (
       <Suspense fallback={<ScreenLoader />}>
@@ -114,7 +123,7 @@ export default function App() {
           onAddEvent={(evt) => setDbEvents([...dbEvents, evt])}
           onDeleteEvent={(id) => setDbEvents(dbEvents.filter(e => e.id !== id))}
           onUpdateEvent={(updatedEvt) => {
-             setDbEvents(dbEvents.map(e => e.id === updatedEvt.id ? updatedEvt : e));
+            setDbEvents(dbEvents.map(e => e.id === updatedEvt.id ? updatedEvt : e));
           }}
         />
       </Suspense>
@@ -126,7 +135,7 @@ export default function App() {
       <div className="absolute inset-0 z-0">
         <Canvas camera={{ position: [60, 60, 60], fov: 45 }} shadows dpr={[1, 1.5]}>
           <Suspense fallback={<Loader3D />}>
-            <Campus3D 
+            <Campus3D
               onEdificioClick={(name) => {
                 const loc = locations.find(l => l.name === name);
                 if (loc) setSelectedLoc(loc);
