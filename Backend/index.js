@@ -178,24 +178,49 @@ app.get('/api/profile', verifyToken, (req, res) => {
     res.json({ user: req.user });
 });
 
-// --- E. Registro ---
-app.post('/register', async (req, res) => {
+// --- REGISTRO DE USUARIO (CORREGIDO) ---
+app.post('/api/register', async (req, res) => {
   try {
     const { email, password } = req.body;
+    
+    // 1. Verificar si ya existe
     const userExist = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
-    if (userExist.rows.length > 0) return res.status(400).json({ error: "Correo ya registrado" });
+    if (userExist.rows.length > 0) return res.status(400).json({ error: "Este correo ya está registrado" });
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-    const newUser = await pool.query("INSERT INTO users (email, password, role) VALUES ($1, $2, $3) RETURNING *", [email, hashedPassword, 'user']);
+    // 2. Encriptar contraseña
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    const token = jwt.sign({ id: newUser.rows[0].id, email: newUser.rows[0].email, role: 'user' }, SECRET_KEY, { expiresIn: '24h' });
+    // 3. Crear usuario en BD
+    const newUser = await pool.query(
+      "INSERT INTO users (email, password, role) VALUES ($1, $2, $3) RETURNING *",
+      [email, hashedPassword, 'user']
+    );
+
+    // 4. Generar Token y Cookie (Para auto-login)
+    const token = jwt.sign(
+        { id: newUser.rows[0].id, email: newUser.rows[0].email, role: 'user' }, 
+        process.env.JWT_SECRET, 
+        { expiresIn: '24h' }
+    );
     
-    // También enviamos cookie al registrarse
-    res.cookie('access_token', token, COOKIE_OPTIONS);
+    // Configuración de cookie segura
+    res.cookie('access_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000 // 24 horas
+    });
     
-    res.json({ message: "Usuario creado", user: { role: 'user', email: newUser.rows[0].email }});
-  } catch (err) { res.status(500).json({ error: "Error al registrar" }); }
+    // 5. Responder
+    res.json({ 
+        message: "Usuario creado exitosamente", 
+        user: { role: 'user', email: newUser.rows[0].email }
+    });
+
+  } catch (err) { 
+    console.error("Error en registro:", err);
+    res.status(500).json({ error: "Error al registrar usuario" }); 
+  }
 });
 
 // --- Rutas Protegidas ---
