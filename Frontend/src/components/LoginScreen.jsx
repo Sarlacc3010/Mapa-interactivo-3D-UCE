@@ -60,9 +60,13 @@ export function LoginScreen({ onLogin }) {
     <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-[#1e3a8a] to-[#D9232D] relative overflow-hidden">
       
       <Header>
-         <div className="hidden sm:block text-white/80 text-xs font-medium cursor-pointer hover:text-white transition-colors">
-            Ayuda / Soporte
-         </div>
+         {/* BOTÓN SOPORTE CORREGIDO: Ahora es un enlace mailto */}
+         <a 
+            href="mailto:soporte@uce.edu.ec?subject=Ayuda%20Plataforma%203D"
+            className="hidden sm:flex items-center gap-2 text-white/80 text-xs font-medium cursor-pointer hover:text-white transition-colors bg-white/10 px-3 py-1.5 rounded-full hover:bg-white/20"
+         >
+            <span>?</span> Ayuda / Soporte
+         </a>
       </Header>
       
       <main className="flex-1 flex items-center justify-center p-4 z-10">

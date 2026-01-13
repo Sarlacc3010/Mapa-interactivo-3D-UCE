@@ -10,6 +10,7 @@ import {
 } from 'recharts';
 
 import { useLocations } from "../hooks/useLocations"; 
+import { UCELogoImage } from "./UCELogoImage"; // <--- IMPORTAMOS EL LOGO
 
 // Datos estáticos
 const DATA_VISITAS = [
@@ -44,7 +45,6 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
         title: event.title || "",
         description: event.description || "",
         location_id: event.location_id ? String(event.location_id) : "", 
-        // Cortamos la fecha para que encaje en el input type="date"
         date: event.date ? event.date.split('T')[0] : "",
         time: event.time || ""
     });
@@ -76,24 +76,19 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
 
       const response = await fetch(url, {
         method: method,
-        headers: {
-          'Content-Type': 'application/json'
-          // NO usamos Authorization header, usamos cookies
-        },
-        credentials: 'include', // <--- IMPORTANTE PARA COOKIES
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Cookies HttpOnly
         body: JSON.stringify({
             title: newEvent.title,
             description: newEvent.description,
             date: newEvent.date,
-            time: newEvent.time, // <--- Aquí enviamos la hora
+            time: newEvent.time,
             location_id: parseInt(newEvent.location_id)
         })
       });
 
       if (response.ok) {
         const eventData = await response.json();
-        
-        // Inyectamos nombre de ubicación para mostrarlo sin recargar
         const locationName = locations.find(l => l.id == newEvent.location_id)?.name || "Ubicación";
         const eventoCompleto = { ...eventData, location_name: locationName };
 
@@ -132,7 +127,6 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
       } catch(e) { console.error(e); }
   };
 
-  // Función auxiliar para mostrar la fecha bonita en la tarjeta
   const formatDate = (isoString) => {
       if (!isoString) return "";
       return isoString.split('T')[0];
@@ -141,14 +135,20 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
   return (
     <div className="flex h-screen bg-gray-50 font-sans overflow-hidden">
       
+      {/* --- SIDEBAR --- */}
       <aside className="w-64 bg-[#1e3a8a] text-white flex flex-col shadow-2xl z-20 shrink-0">
+        
+        {/* LOGO EN LA CABECERA DEL SIDEBAR */}
         <div className="p-6 flex items-center gap-3 border-b border-blue-800">
-           <div className="w-8 h-8 bg-[#D9232D] rounded-lg flex items-center justify-center font-bold shadow-md">A</div>
+           {/* Logo directo con brillo suave para resaltar sobre el azul */}
+           <UCELogoImage className="w-20 h-auto object-contain drop-shadow-md" />
+           
            <div>
              <span className="text-lg font-bold tracking-wide block leading-none">Admin UCE</span>
              <span className="text-[10px] text-blue-200 uppercase tracking-wider">Panel de Control</span>
            </div>
         </div>
+
         <nav className="flex-1 p-4 space-y-2">
           <SidebarItem icon={LayoutDashboard} label="Resumen" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
           <SidebarItem icon={Megaphone} label="Gestión Eventos" active={activeTab === 'events'} onClick={() => setActiveTab('events')} />
@@ -180,7 +180,6 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
                       <StatCard title="Ubicaciones" value={locations.length} icon={MapPin} color="bg-red-500" />
                       <StatCard title="Visitas" value="1,392" icon={TrendingUp} color="bg-green-500" />
                   </div>
-                  {/* ... Gráficas (igual que antes) ... */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-80">
                       <h3 className="font-bold text-gray-800 mb-4">Top Lugares</h3>
@@ -301,7 +300,6 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
                                   {event.location_name || "⚠️ Sin Ubicación"}
                                </span>
                                <span className="flex items-center gap-1">
-                                  {/* CORREGIDO: MOSTRAR FECHA FORMATEADA Y HORA */}
                                   <Calendar className="w-3.5 h-3.5" /> {formatDate(event.date)} • {event.time || "--:--"}
                                </span>
                             </div>
