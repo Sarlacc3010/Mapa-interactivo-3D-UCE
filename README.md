@@ -162,5 +162,5 @@ Las contribuciones son bienvenidas. Por favor, sigue estos pasos:
 
 
 
-<small>2025 © Todos los derechos reservados</small>
+<small>2025 - 2026 © Todos los derechos reservados</small>
 </div>
