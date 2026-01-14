@@ -289,25 +289,37 @@ app.get('/api/events', async (req, res) => {
   }
 });
 
-// --- CREAR EVENTO (POST) CORREGIDO ---
+// --- VALIDACIÓN DE FECHA (Helper) ---
+const isPastDate = (dateStr, timeStr) => {
+    // Combina fecha y hora para crear un objeto Date completo
+    // dateStr suele ser YYYY-MM-DD y timeStr HH:mm
+    const eventDate = new Date(`${dateStr}T${timeStr || '00:00:00'}`);
+    const now = new Date();
+    // Restamos 5 horas si el servidor no está en la zona horaria de Ecuador, 
+    // pero si ambos (cliente y server) usan hora local, esto basta:
+    return eventDate < now;
+};
+
+// --- CREAR EVENTO (POST) CON VALIDACIÓN ---
 app.post('/api/events', verifyToken, async (req, res) => {
   try {
-    // 1. AÑADIMOS 'time' A LA LISTA DE DATOS RECIBIDOS
     const { title, description, date, time, location_id } = req.body;
 
-    // 2. AÑADIMOS 'time' A LA CONSULTA SQL
-    // Nota: Asegúrate de que tu tabla 'events' ya tenga la columna 'time' (tipo TEXT)
+    // 1. VALIDACIÓN: NO PERMITIR FECHAS PASADAS
+    if (isPastDate(date, time)) {
+        return res.status(400).json({ error: "No puedes crear eventos en una fecha u hora pasada." });
+    }
+
     const newEvent = await pool.query(
       "INSERT INTO events (title, description, date, time, location_id) VALUES($1, $2, $3, $4, $5) RETURNING *",
       [title, description, date, time, location_id]
     );
 
-    console.log("✅ Evento guardado con hora ID:", newEvent.rows[0].id);
+    console.log("✅ Evento guardado ID:", newEvent.rows[0].id);
 
-    // Notificación por correo (Opcional)
+    // ... lógica de envío de correo (sin cambios) ...
     const usersResult = await pool.query("SELECT email FROM users");
     const emailList = usersResult.rows.map(user => user.email);
-
     if (emailList.length > 0) {
         sendEventNotification(emailList, title, date, description).catch(console.error); 
     }
@@ -319,12 +331,17 @@ app.post('/api/events', verifyToken, async (req, res) => {
   }
 });
 
-// EDITAR EVENTO (PUT)
+// --- EDITAR EVENTO (PUT) CON VALIDACIÓN ---
 app.put('/api/events/:id', verifyToken, async (req, res) => {
     try {
       const { id } = req.params;
       const { title, description, date, time, location_id } = req.body;
       
+      // 1. VALIDACIÓN AL EDITAR TAMBIÉN
+      if (isPastDate(date, time)) {
+        return res.status(400).json({ error: "No puedes mover un evento al pasado." });
+      }
+
       console.log(`📝 Actualizando evento ${id} con hora: ${time}`);
 
       const result = await pool.query(

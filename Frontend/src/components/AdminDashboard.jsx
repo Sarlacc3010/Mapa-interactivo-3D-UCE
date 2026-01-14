@@ -60,6 +60,17 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
+
+    // --- NUEVA VALIDACIÓN DE FECHA ---
+    const currentDateTime = new Date();
+    // Creamos la fecha del evento combinando los inputs
+    const eventDateTime = new Date(`${newEvent.date}T${newEvent.time || '00:00'}`);
+    
+    if (eventDateTime < currentDateTime) {
+        alert("⚠️ No puedes programar eventos en el pasado. Por favor revisa la fecha y hora.");
+        setIsSubmitting(false);
+        return; // Detenemos la ejecución
+    }
     
     try {
       if(!newEvent.location_id) {

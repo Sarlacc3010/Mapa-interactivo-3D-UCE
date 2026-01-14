@@ -62,7 +62,7 @@ export function EventsPopup({ isOpen, onClose, locationName, events }) {
                     </div>
                     <h3 className="text-gray-600 font-semibold text-lg">Sin eventos programados</h3>
                     <p className="text-gray-400 text-sm max-w-[200px]">
-                        No hay actividades registradas para esta facultad por el momento.
+                        No hay actividades registradas por el momento.
                     </p>
                 </div>
             ) : (
