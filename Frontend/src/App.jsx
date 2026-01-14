@@ -145,7 +145,7 @@ export default function App() {
             <div className="relative group">
                 <button className="flex items-center gap-2 text-white/80 text-xs font-medium cursor-help hover:text-white transition-colors bg-white/10 px-3 py-1.5 rounded-full hover:bg-white/20 border border-white/10">
                     <HelpCircle size={14} /> 
-                    <span className="hidden sm:inline">Guía de Uso</span>
+                    <span className="hidden sm:inline">Guía</span>
                 </button>
                 
                 {/* Menú Optimizado (Más rápido y ligero) */}
