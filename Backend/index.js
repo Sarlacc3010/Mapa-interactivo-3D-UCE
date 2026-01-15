@@ -8,7 +8,7 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const cookieParser = require('cookie-parser');
 require('dotenv').config();
 
-// --- NUEVOS IMPORTS ---
+// Base de datos NoSQL y Redis (Los mantenemos si los usas)
 const mongoose = require('mongoose');
 const { createClient } = require('redis');
 const path = require('path');
@@ -27,18 +27,18 @@ const PORT = 5000;
 // ==========================================
 app.use(cors({
   origin: ['http://localhost:5173', 'http://127.0.0.1:5173'], // Tu frontend
-  credentials: true // ¡CRÍTICO! Permite recibir cookies del frontend
+  credentials: true 
 }));
 
 app.use(express.json());
-app.use(cookieParser()); // Permite leer las cookies que llegan
+app.use(cookieParser()); 
 app.use(passport.initialize());
 
-// Configuración de Cookies (Centralizada para reusar)
+// Configuración de Cookies
 const COOKIE_OPTIONS = {
-  httpOnly: true, // La magia: JavaScript del frontend NO puede leer esto
-  secure: process.env.NODE_ENV === 'production', // En producción (HTTPS) debe ser true
-  sameSite: 'lax', // Permite navegación normal y Google OAuth
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax',
   maxAge: 24 * 60 * 60 * 1000 // 24 horas
 };
 
@@ -52,7 +52,7 @@ if (!fs.existsSync(uploadDir)){
 app.use('/uploads', express.static(uploadDir));
 
 // ==========================================
-// 3. CONEXIÓN BASE DE DATOS SQL
+// 3. CONEXIÓN BASE DE DATOS SQL (Postgres)
 // ==========================================
 const pool = new Pool({
   user: process.env.DB_USER,
@@ -84,9 +84,8 @@ redisClient.on('error', (err) => console.log('❌ Error Redis', err));
 })();
 
 // ==========================================
-// 6. GOOGLE OAUTH
+// 6. GOOGLE OAUTH (VISITANTES)
 // ==========================================
-// Solo configuramos si existen las credenciales para evitar errores al arrancar
 if (process.env.GOOGLE_CLIENT_ID) {
   passport.use(new GoogleStrategy({
       clientID: process.env.GOOGLE_CLIENT_ID,
@@ -95,21 +94,26 @@ if (process.env.GOOGLE_CLIENT_ID) {
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
+        // 1. Buscar por Google ID
         const res = await pool.query("SELECT * FROM users WHERE google_id = $1", [profile.id]);
         if (res.rows.length > 0) return done(null, res.rows[0]);
         
+        // 2. Buscar por Email (si ya se registró manualmente antes)
         const email = profile.emails[0].value;
         const emailRes = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
         
         if (emailRes.rows.length > 0) {
+          // Actualizamos Google ID y Avatar
           const user = emailRes.rows[0];
           await pool.query("UPDATE users SET google_id = $1, avatar = $2 WHERE email = $3", [profile.id, profile.photos[0]?.value, email]);
           return done(null, user);
         } 
         
+        // 3. Crear Usuario Nuevo (ROL VISITANTE POR DEFECTO)
+        // faculty_id es NULL porque es un visitante
         const newUser = await pool.query(
-          "INSERT INTO users (email, google_id, role, avatar) VALUES ($1, $2, $3, $4) RETURNING *",
-          [email, profile.id, 'user', profile.photos[0]?.value]
+          "INSERT INTO users (email, google_id, role, avatar, faculty_id) VALUES ($1, $2, $3, $4, NULL) RETURNING *",
+          [email, profile.id, 'visitor', profile.photos[0]?.value]
         );
         return done(null, newUser.rows[0]);
       } catch (err) { return done(err, null); }
@@ -118,27 +122,31 @@ if (process.env.GOOGLE_CLIENT_ID) {
 }
 
 // ==========================================
-// 7. RUTAS (ENDPOINTS)
+// 7. RUTAS DE AUTENTICACIÓN
 // ==========================================
 
-// --- A. Google Routes (MODIFICADO PARA COOKIES) ---
+// --- A. Google ---
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 app.get('/auth/google/callback', 
   passport.authenticate('google', { session: false, failureRedirect: 'http://localhost:5173/login?error=auth_failed' }),
   (req, res) => {
     const user = req.user;
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, SECRET_KEY, { expiresIn: '24h' });
+    // Generar Token con ID, Email, Rol y Facultad
+    const token = jwt.sign(
+        { id: user.id, email: user.email, role: user.role, faculty_id: user.faculty_id }, 
+        SECRET_KEY, 
+        { expiresIn: '24h' }
+    );
     
-    // 1. Establecer cookie segura
     res.cookie('access_token', token, COOKIE_OPTIONS);
     
-    // 2. Redirigir al frontend SIN el token en la URL (Más seguro)
+    // Redirigir al frontend
     res.redirect(`http://localhost:5173/?loginSuccess=true&role=${user.role}`);
   }
 );
 
-// --- B. Login Manual (MODIFICADO) ---
+// --- B. Login Manual ---
 app.post('/api/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -152,84 +160,117 @@ app.post('/api/login', async (req, res) => {
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) return res.status(400).json({ error: "Contraseña incorrecta" });
 
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, SECRET_KEY, { expiresIn: '24h' });
+    // Token con datos de facultad y rol
+    const token = jwt.sign(
+        { id: user.id, email: user.email, role: user.role, faculty_id: user.faculty_id }, 
+        SECRET_KEY, 
+        { expiresIn: '24h' }
+    );
     
-    // [SEGURIDAD] Enviar Cookie HttpOnly
     res.cookie('access_token', token, COOKIE_OPTIONS);
     
-    // En el JSON solo confirmación, NO el token
     res.json({ 
         message: "Login exitoso", 
-        user: { email: user.email, role: user.role } 
+        user: { email: user.email, role: user.role, faculty_id: user.faculty_id } 
     });
   } catch (err) { res.status(500).json({ error: "Error de servidor" }); }
 });
 
-// --- C. Logout (NUEVO) ---
-app.post('/api/logout', (req, res) => {
-    res.clearCookie('access_token'); // Borra la cookie del navegador
-    res.json({ message: "Sesión cerrada" });
-});
+app.post("/api/register", async (req, res) => {
+  // 1. Recibimos 'name' y 'faculty_id' del frontend
+  const { email, password, name, faculty_id } = req.body; 
 
-// --- D. Perfil / Verificar Sesión (NUEVO - Para React) ---
-// El frontend llamará a esto al recargar la página para saber si sigue logueado
-app.get('/api/profile', verifyToken, (req, res) => {
-    // verifyToken ya decodificó la cookie y puso el usuario en req.user
-    res.json({ user: req.user });
-});
-
-// --- REGISTRO DE USUARIO (CORREGIDO) ---
-app.post('/api/register', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    // Verificar si existe
+    const user = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+    if (user.rows.length > 0) {
+      return res.status(401).json({ error: "El usuario ya existe" });
+    }
+
+    // Encriptar contraseña
+    const saltRound = 10;
+    const salt = await bcrypt.genSalt(saltRound);
+    const bcryptPassword = await bcrypt.hash(password, salt);
+
+    // Definir Rol
+    let role = 'visitor';
+    if (email.endsWith('@uce.edu.ec')) {
+        role = 'student';
+    }
     
-    // 1. Verificar si ya existe
-    const userExist = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
-    if (userExist.rows.length > 0) return res.status(400).json({ error: "Este correo ya está registrado" });
-
-    // 2. Encriptar contraseña
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // 3. Crear usuario en BD
+    // 2. QUERY ACTUALIZADA: Guardamos name y faculty_id
     const newUser = await pool.query(
-      "INSERT INTO users (email, password, role) VALUES ($1, $2, $3) RETURNING *",
-      [email, hashedPassword, 'user']
+      `INSERT INTO users (email, password, role, name, faculty_id) 
+       VALUES ($1, $2, $3, $4, $5) 
+       RETURNING *`,
+      [
+        email, 
+        bcryptPassword, 
+        role, 
+        name || null,       // Si no envía nombre, pone null
+        faculty_id || null  // Si no envía facultad, pone null
+      ]
     );
 
-    // 4. Generar Token y Cookie (Para auto-login)
-    const token = jwt.sign(
-        { id: newUser.rows[0].id, email: newUser.rows[0].email, role: 'user' }, 
-        process.env.JWT_SECRET, 
-        { expiresIn: '24h' }
-    );
-    
-    // Configuración de cookie segura
-    res.cookie('access_token', token, {
+    // Generar Token
+    const token = jwt.sign({ user: newUser.rows[0].id }, process.env.jwtSecret, { expiresIn: "1h" });
+
+    // Enviar Cookie
+    res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 24 * 60 * 60 * 1000 // 24 horas
-    });
-    
-    // 5. Responder
-    res.json({ 
-        message: "Usuario creado exitosamente", 
-        user: { role: 'user', email: newUser.rows[0].email }
+      secure: false, // true si usas HTTPS
+      sameSite: 'lax'
     });
 
-  } catch (err) { 
-    console.error("Error en registro:", err);
-    res.status(500).json({ error: "Error al registrar usuario" }); 
+    return res.json({ token, user: newUser.rows[0] });
+
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Error en el servidor");
   }
 });
 
-// --- Rutas Protegidas ---
+// --- D. Logout ---
+app.post('/api/logout', (req, res) => {
+    res.clearCookie('access_token');
+    res.json({ message: "Sesión cerrada" });
+});
+
+// --- E. Perfil (Vital para React) ---
+app.get('/api/profile', verifyToken, async (req, res) => {
+    try {
+        // Buscamos siempre en la BD para tener los datos más recientes
+        const userResult = await pool.query("SELECT id, email, role, faculty_id, avatar, google_id FROM users WHERE id = $1", [req.user.id]);
+        
+        if (userResult.rows.length > 0) {
+            res.json({ user: userResult.rows[0] });
+        } else {
+            res.status(404).json({ error: "Usuario no encontrado" });
+        }
+    } catch (error) {
+        res.status(500).json({ error: "Error obteniendo perfil" });
+    }
+});
+
+// ==========================================
+// 8. RUTAS DE DATOS (PROTEGIDAS)
+// ==========================================
+
+// Locations
 app.use('/api/locations', locationRoutes); 
 
-// 1. CORREGIDO EL GET (Para que TRAIGA la hora)
+// Helper para validar fechas
+const isPastDate = (dateStr, timeStr) => {
+    const eventDate = new Date(`${dateStr}T${timeStr || '00:00:00'}`);
+    const now = new Date();
+    return eventDate < now;
+};
+
+// --- API EVENTOS (CRUD UNIFICADO) ---
+
+// 1. GET Eventos (Público o Protegido según prefieras, aquí público)
 app.get('/api/events', async (req, res) => {
   try {
-    // Agregamos e.time a la consulta
     const query = `
       SELECT e.id, e.title, e.description, e.date, e.time, l.name as location_name, e.location_id 
       FROM events e 
@@ -238,30 +279,66 @@ app.get('/api/events', async (req, res) => {
     `;
     const result = await pool.query(query);
     res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: "Error cargando eventos" }); }
+  } catch (err) { 
+    console.error(err);
+    res.status(500).json({ error: "Error cargando eventos" }); 
+  }
 });
 
-// 2. CORREGIDO EL POST (Para que GUARDE la hora)
+// 2. POST Eventos (Protegido)
 app.post('/api/events', verifyToken, async (req, res) => {
   try {
-    // Leemos 'time' del cuerpo de la petición
     const { title, description, date, time, location_id } = req.body;
     
-    // Lo agregamos al INSERT ($4 es la hora, $5 es location_id)
+    // Validación de rol (Opcional: solo admins o docentes pueden crear?)
+    // if (req.user.role !== 'admin' && req.user.role !== 'teacher') return res.status(403).json({error: "No autorizado"});
+
+    if (isPastDate(date, time)) return res.status(400).json({ error: "No puedes crear eventos en fechas pasadas." });
+
     const newEvent = await pool.query(
-      "INSERT INTO events (title, description, date, time, location_id) VALUES($1, $2, $3, $4, $5) RETURNING *", 
+      "INSERT INTO events (title, description, date, time, location_id) VALUES($1, $2, $3, $4, $5) RETURNING *",
       [title, description, date, time, location_id]
     );
-    
-    // Notificación (opcional)
+
+    // Enviar Correos
     const usersResult = await pool.query("SELECT email FROM users");
-    const emailList = usersResult.rows.map(u => u.email);
-    if (emailList.length > 0) sendEventNotification(emailList, title, date, description).catch(console.error); 
-    
+    const emailList = usersResult.rows.map(user => user.email);
+    if (emailList.length > 0) {
+        sendEventNotification(emailList, title, date, description).catch(console.error); 
+    }
+
     res.json(newEvent.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// 3. PUT Eventos
+app.put('/api/events/:id', verifyToken, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { title, description, date, time, location_id } = req.body;
+      
+      if (isPastDate(date, time)) return res.status(400).json({ error: "Fecha inválida (pasado)." });
+
+      const result = await pool.query(
+        "UPDATE events SET title=$1, description=$2, date=$3, time=$4, location_id=$5 WHERE id=$6 RETURNING *",
+        [title, description, date, time, parseInt(location_id), id]
+      );
+      
+      if (result.rows.length === 0) return res.status(404).json({ error: "Evento no encontrado" });
+      res.json(result.rows[0]);
+    } catch (err) { res.status(500).json({ error: "Error SQL: " + err.message }); }
+});
+
+// 4. DELETE Eventos
+app.delete('/api/events/:id', verifyToken, async (req, res) => {
+  try {
+    // Podrías validar que solo el creador o admin borre
+    await pool.query("DELETE FROM events WHERE id = $1", [req.params.id]);
+    res.json({ message: "Eliminado" });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// --- API VISITAS ---
 app.post('/visits', verifyToken, async (req, res) => {
   try {
     const { location_id } = req.body;
@@ -271,101 +348,9 @@ app.post('/visits', verifyToken, async (req, res) => {
   } catch (err) { res.status(500).json({ error: "Error al registrar visita" }); }
 });
 
-// --- G. Eventos (SQL) ---
-
-app.get('/api/events', async (req, res) => {
-  try {
-    const query = `
-      SELECT e.id, e.title, e.description, e.date, e.time, l.name as location_name, e.location_id
-      FROM events e
-      LEFT JOIN locations l ON e.location_id = l.id
-      ORDER BY e.date DESC
-    `;
-    const result = await pool.query(query);
-    res.json(result.rows);
-  } catch (err) {
-    console.error("Error buscando eventos:", err);
-    res.status(500).json({ error: "Error al cargar eventos" });
-  }
-});
-
-// --- VALIDACIÓN DE FECHA (Helper) ---
-const isPastDate = (dateStr, timeStr) => {
-    // Combina fecha y hora para crear un objeto Date completo
-    // dateStr suele ser YYYY-MM-DD y timeStr HH:mm
-    const eventDate = new Date(`${dateStr}T${timeStr || '00:00:00'}`);
-    const now = new Date();
-    // Restamos 5 horas si el servidor no está en la zona horaria de Ecuador, 
-    // pero si ambos (cliente y server) usan hora local, esto basta:
-    return eventDate < now;
-};
-
-// --- CREAR EVENTO (POST) CON VALIDACIÓN ---
-app.post('/api/events', verifyToken, async (req, res) => {
-  try {
-    const { title, description, date, time, location_id } = req.body;
-
-    // 1. VALIDACIÓN: NO PERMITIR FECHAS PASADAS
-    if (isPastDate(date, time)) {
-        return res.status(400).json({ error: "No puedes crear eventos en una fecha u hora pasada." });
-    }
-
-    const newEvent = await pool.query(
-      "INSERT INTO events (title, description, date, time, location_id) VALUES($1, $2, $3, $4, $5) RETURNING *",
-      [title, description, date, time, location_id]
-    );
-
-    console.log("✅ Evento guardado ID:", newEvent.rows[0].id);
-
-    // ... lógica de envío de correo (sin cambios) ...
-    const usersResult = await pool.query("SELECT email FROM users");
-    const emailList = usersResult.rows.map(user => user.email);
-    if (emailList.length > 0) {
-        sendEventNotification(emailList, title, date, description).catch(console.error); 
-    }
-
-    res.json(newEvent.rows[0]);
-  } catch (err) { 
-    console.error("Error al crear evento:", err);
-    res.status(500).json({ error: err.message }); 
-  }
-});
-
-// --- EDITAR EVENTO (PUT) CON VALIDACIÓN ---
-app.put('/api/events/:id', verifyToken, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { title, description, date, time, location_id } = req.body;
-      
-      // 1. VALIDACIÓN AL EDITAR TAMBIÉN
-      if (isPastDate(date, time)) {
-        return res.status(400).json({ error: "No puedes mover un evento al pasado." });
-      }
-
-      console.log(`📝 Actualizando evento ${id} con hora: ${time}`);
-
-      const result = await pool.query(
-        "UPDATE events SET title=$1, description=$2, date=$3, time=$4, location_id=$5 WHERE id=$6 RETURNING *",
-        [title, description, date, time, parseInt(location_id), id]
-      );
-      
-      if (result.rows.length === 0) return res.status(404).json({ error: "Evento no encontrado" });
-      
-      res.json(result.rows[0]);
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: "Error SQL: " + err.message });
-    }
-});
-
-// ELIMINAR EVENTO (DELETE)
-app.delete('/api/events/:id', verifyToken, async (req, res) => {
-  try {
-    await pool.query("DELETE FROM events WHERE id = $1", [req.params.id]);
-    res.json({ message: "Eliminado" });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
+// ==========================================
+// 9. INICIAR SERVIDOR
+// ==========================================
 app.listen(PORT, () => {
   console.log(`🚀 Servidor Backend listo en http://localhost:${PORT}`);
 });
