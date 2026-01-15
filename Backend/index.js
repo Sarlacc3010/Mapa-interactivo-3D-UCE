@@ -8,8 +8,7 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const cookieParser = require('cookie-parser');
 require('dotenv').config();
 
-// Base de datos NoSQL y Redis (Los mantenemos si los usas)
-const mongoose = require('mongoose');
+// Redis (Lo mantenemos para caché si lo usas a futuro)
 const { createClient } = require('redis');
 const path = require('path');
 const fs = require('fs');
@@ -26,7 +25,7 @@ const PORT = 5000;
 // 1. MIDDLEWARES GLOBALES
 // ==========================================
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'], // Tu frontend
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'], 
   credentials: true 
 }));
 
@@ -64,15 +63,7 @@ const pool = new Pool({
 const SECRET_KEY = process.env.JWT_SECRET;
 
 // ==========================================
-// 4. CONEXIÓN MONGODB
-// ==========================================
-const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/uce_nosql_db';
-mongoose.connect(mongoUri)
-  .then(() => console.log('✅ Conectado a MongoDB'))
-  .catch(err => console.error('❌ Error MongoDB:', err));
-
-// ==========================================
-// 5. CONEXIÓN REDIS
+// 4. CONEXIÓN REDIS
 // ==========================================
 const redisClient = createClient({
   url: `redis://${process.env.REDIS_HOST || 'localhost'}:${process.env.REDIS_PORT || 6379}`
@@ -84,7 +75,7 @@ redisClient.on('error', (err) => console.log('❌ Error Redis', err));
 })();
 
 // ==========================================
-// 6. GOOGLE OAUTH (VISITANTES)
+// 5. GOOGLE OAUTH (VISITANTES)
 // ==========================================
 if (process.env.GOOGLE_CLIENT_ID) {
   passport.use(new GoogleStrategy({
@@ -94,23 +85,18 @@ if (process.env.GOOGLE_CLIENT_ID) {
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
-        // 1. Buscar por Google ID
         const res = await pool.query("SELECT * FROM users WHERE google_id = $1", [profile.id]);
         if (res.rows.length > 0) return done(null, res.rows[0]);
         
-        // 2. Buscar por Email (si ya se registró manualmente antes)
         const email = profile.emails[0].value;
         const emailRes = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
         
         if (emailRes.rows.length > 0) {
-          // Actualizamos Google ID y Avatar
           const user = emailRes.rows[0];
           await pool.query("UPDATE users SET google_id = $1, avatar = $2 WHERE email = $3", [profile.id, profile.photos[0]?.value, email]);
           return done(null, user);
         } 
         
-        // 3. Crear Usuario Nuevo (ROL VISITANTE POR DEFECTO)
-        // faculty_id es NULL porque es un visitante
         const newUser = await pool.query(
           "INSERT INTO users (email, google_id, role, avatar, faculty_id) VALUES ($1, $2, $3, $4, NULL) RETURNING *",
           [email, profile.id, 'visitor', profile.photos[0]?.value]
@@ -122,7 +108,7 @@ if (process.env.GOOGLE_CLIENT_ID) {
 }
 
 // ==========================================
-// 7. RUTAS DE AUTENTICACIÓN
+// 6. RUTAS DE AUTENTICACIÓN
 // ==========================================
 
 // --- A. Google ---
@@ -132,16 +118,12 @@ app.get('/auth/google/callback',
   passport.authenticate('google', { session: false, failureRedirect: 'http://localhost:5173/login?error=auth_failed' }),
   (req, res) => {
     const user = req.user;
-    // Generar Token con ID, Email, Rol y Facultad
     const token = jwt.sign(
         { id: user.id, email: user.email, role: user.role, faculty_id: user.faculty_id }, 
         SECRET_KEY, 
         { expiresIn: '24h' }
     );
-    
     res.cookie('access_token', token, COOKIE_OPTIONS);
-    
-    // Redirigir al frontend
     res.redirect(`http://localhost:5173/?loginSuccess=true&role=${user.role}`);
   }
 );
@@ -160,15 +142,12 @@ app.post('/api/login', async (req, res) => {
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) return res.status(400).json({ error: "Contraseña incorrecta" });
 
-    // Token con datos de facultad y rol
     const token = jwt.sign(
         { id: user.id, email: user.email, role: user.role, faculty_id: user.faculty_id }, 
         SECRET_KEY, 
         { expiresIn: '24h' }
     );
-    
     res.cookie('access_token', token, COOKIE_OPTIONS);
-    
     res.json({ 
         message: "Login exitoso", 
         user: { email: user.email, role: user.role, faculty_id: user.faculty_id } 
@@ -176,71 +155,59 @@ app.post('/api/login', async (req, res) => {
   } catch (err) { res.status(500).json({ error: "Error de servidor" }); }
 });
 
+// --- C. Registro ---
 app.post("/api/register", async (req, res) => {
-  // 1. Recibimos 'name' y 'faculty_id' del frontend
   const { email, password, name, faculty_id } = req.body; 
 
   try {
-    // Verificar si existe
     const user = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
     if (user.rows.length > 0) {
       return res.status(401).json({ error: "El usuario ya existe" });
     }
 
-    // Encriptar contraseña
     const saltRound = 10;
     const salt = await bcrypt.genSalt(saltRound);
     const bcryptPassword = await bcrypt.hash(password, salt);
 
-    // Definir Rol
     let role = 'visitor';
     if (email.endsWith('@uce.edu.ec')) {
         role = 'student';
     }
     
-    // 2. QUERY ACTUALIZADA: Guardamos name y faculty_id
     const newUser = await pool.query(
       `INSERT INTO users (email, password, role, name, faculty_id) 
        VALUES ($1, $2, $3, $4, $5) 
        RETURNING *`,
-      [
-        email, 
-        bcryptPassword, 
-        role, 
-        name || null,       // Si no envía nombre, pone null
-        faculty_id || null  // Si no envía facultad, pone null
-      ]
+      [email, bcryptPassword, role, name || null, faculty_id || null]
     );
 
-    // Generar Token
-    const token = jwt.sign({ user: newUser.rows[0].id }, process.env.jwtSecret, { expiresIn: "1h" });
+    const token = jwt.sign({ user: newUser.rows[0].id }, process.env.jwtSecret || SECRET_KEY, { expiresIn: "1h" });
 
-    // Enviar Cookie
     res.cookie("token", token, {
       httpOnly: true,
-      secure: false, // true si usas HTTPS
+      secure: false, 
       sameSite: 'lax'
     });
 
     return res.json({ token, user: newUser.rows[0] });
 
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Error en el servidor");
+    console.error("Error en registro:", err.message); 
+    res.status(500).json({ error: "Error en el servidor", details: err.message }); 
   }
 });
 
 // --- D. Logout ---
 app.post('/api/logout', (req, res) => {
     res.clearCookie('access_token');
+    res.clearCookie('token'); // Limpiamos ambas por si acaso
     res.json({ message: "Sesión cerrada" });
 });
 
-// --- E. Perfil (Vital para React) ---
+// --- E. Perfil ---
 app.get('/api/profile', verifyToken, async (req, res) => {
     try {
-        // Buscamos siempre en la BD para tener los datos más recientes
-        const userResult = await pool.query("SELECT id, email, role, faculty_id, avatar, google_id FROM users WHERE id = $1", [req.user.id]);
+        const userResult = await pool.query("SELECT id, email, role, faculty_id, name, avatar, google_id FROM users WHERE id = $1", [req.user.id]);
         
         if (userResult.rows.length > 0) {
             res.json({ user: userResult.rows[0] });
@@ -253,22 +220,18 @@ app.get('/api/profile', verifyToken, async (req, res) => {
 });
 
 // ==========================================
-// 8. RUTAS DE DATOS (PROTEGIDAS)
+// 7. RUTAS DE DATOS (PROTEGIDAS)
 // ==========================================
 
-// Locations
 app.use('/api/locations', locationRoutes); 
 
-// Helper para validar fechas
 const isPastDate = (dateStr, timeStr) => {
     const eventDate = new Date(`${dateStr}T${timeStr || '00:00:00'}`);
     const now = new Date();
     return eventDate < now;
 };
 
-// --- API EVENTOS (CRUD UNIFICADO) ---
-
-// 1. GET Eventos (Público o Protegido según prefieras, aquí público)
+// --- API EVENTOS ---
 app.get('/api/events', async (req, res) => {
   try {
     const query = `
@@ -285,14 +248,10 @@ app.get('/api/events', async (req, res) => {
   }
 });
 
-// 2. POST Eventos (Protegido)
 app.post('/api/events', verifyToken, async (req, res) => {
   try {
     const { title, description, date, time, location_id } = req.body;
     
-    // Validación de rol (Opcional: solo admins o docentes pueden crear?)
-    // if (req.user.role !== 'admin' && req.user.role !== 'teacher') return res.status(403).json({error: "No autorizado"});
-
     if (isPastDate(date, time)) return res.status(400).json({ error: "No puedes crear eventos en fechas pasadas." });
 
     const newEvent = await pool.query(
@@ -300,7 +259,6 @@ app.post('/api/events', verifyToken, async (req, res) => {
       [title, description, date, time, location_id]
     );
 
-    // Enviar Correos
     const usersResult = await pool.query("SELECT email FROM users");
     const emailList = usersResult.rows.map(user => user.email);
     if (emailList.length > 0) {
@@ -311,7 +269,6 @@ app.post('/api/events', verifyToken, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 3. PUT Eventos
 app.put('/api/events/:id', verifyToken, async (req, res) => {
     try {
       const { id } = req.params;
@@ -329,10 +286,8 @@ app.put('/api/events/:id', verifyToken, async (req, res) => {
     } catch (err) { res.status(500).json({ error: "Error SQL: " + err.message }); }
 });
 
-// 4. DELETE Eventos
 app.delete('/api/events/:id', verifyToken, async (req, res) => {
   try {
-    // Podrías validar que solo el creador o admin borre
     await pool.query("DELETE FROM events WHERE id = $1", [req.params.id]);
     res.json({ message: "Eliminado" });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -349,7 +304,7 @@ app.post('/visits', verifyToken, async (req, res) => {
 });
 
 // ==========================================
-// 9. INICIAR SERVIDOR
+// 8. INICIAR SERVIDOR
 // ==========================================
 app.listen(PORT, () => {
   console.log(`🚀 Servidor Backend listo en http://localhost:${PORT}`);
