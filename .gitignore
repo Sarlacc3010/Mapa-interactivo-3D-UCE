@@ -1,0 +1,41 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependencias y Build
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# --- SEGURIDAD (CRÍTICO) ---
+*.env
+.env*
+
+# --- AGREGADOS PARA TU PROYECTO ---
+
+# 1. Ignorar Respaldos de Base de Datos (para que no subas tu data por error)
+*.sql
+*.dump
+
+# 2. Ignorar carpetas de Volúmenes de Docker (si se crean en la raíz)
+pg_data/
+mongo_data/
+redis_data/
+
