@@ -25,12 +25,12 @@ const PORT = 5000;
 // 1. MIDDLEWARES GLOBALES
 // ==========================================
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'], 
-  credentials: true 
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+  credentials: true
 }));
 
 app.use(express.json());
-app.use(cookieParser()); 
+app.use(cookieParser());
 app.use(passport.initialize());
 
 // Configuración de Cookies
@@ -45,8 +45,8 @@ const COOKIE_OPTIONS = {
 // 2. CONFIGURACIÓN DE IMÁGENES
 // ==========================================
 const uploadDir = path.join(__dirname, 'public', 'uploads');
-if (!fs.existsSync(uploadDir)){
-    fs.mkdirSync(uploadDir, { recursive: true });
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
 }
 app.use('/uploads', express.static(uploadDir));
 
@@ -70,7 +70,7 @@ const redisClient = createClient({
 });
 redisClient.on('error', (err) => console.log('❌ Error Redis', err));
 (async () => {
-  try { await redisClient.connect(); console.log('✅ Conectado a Redis'); } 
+  try { await redisClient.connect(); console.log('✅ Conectado a Redis'); }
   catch (e) { console.log('⚠️ Sin conexión a Redis'); }
 })();
 
@@ -79,24 +79,24 @@ redisClient.on('error', (err) => console.log('❌ Error Redis', err));
 // ==========================================
 if (process.env.GOOGLE_CLIENT_ID) {
   passport.use(new GoogleStrategy({
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: "/auth/google/callback"
-    },
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL: "/auth/google/callback"
+  },
     async (accessToken, refreshToken, profile, done) => {
       try {
         const res = await pool.query("SELECT * FROM users WHERE google_id = $1", [profile.id]);
         if (res.rows.length > 0) return done(null, res.rows[0]);
-        
+
         const email = profile.emails[0].value;
         const emailRes = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
-        
+
         if (emailRes.rows.length > 0) {
           const user = emailRes.rows[0];
           await pool.query("UPDATE users SET google_id = $1, avatar = $2 WHERE email = $3", [profile.id, profile.photos[0]?.value, email]);
           return done(null, user);
-        } 
-        
+        }
+
         const newUser = await pool.query(
           "INSERT INTO users (email, google_id, role, avatar, faculty_id) VALUES ($1, $2, $3, $4, NULL) RETURNING *",
           [email, profile.id, 'visitor', profile.photos[0]?.value]
@@ -114,14 +114,14 @@ if (process.env.GOOGLE_CLIENT_ID) {
 // --- A. Google ---
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
-app.get('/auth/google/callback', 
+app.get('/auth/google/callback',
   passport.authenticate('google', { session: false, failureRedirect: 'http://localhost:5173/login?error=auth_failed' }),
   (req, res) => {
     const user = req.user;
     const token = jwt.sign(
-        { id: user.id, email: user.email, role: user.role, faculty_id: user.faculty_id }, 
-        SECRET_KEY, 
-        { expiresIn: '24h' }
+      { id: user.id, email: user.email, role: user.role, faculty_id: user.faculty_id },
+      SECRET_KEY,
+      { expiresIn: '24h' }
     );
     res.cookie('access_token', token, COOKIE_OPTIONS);
     res.redirect(`http://localhost:5173/?loginSuccess=true&role=${user.role}`);
@@ -133,7 +133,7 @@ app.post('/api/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     const userResult = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
-    
+
     if (userResult.rows.length === 0) return res.status(400).json({ error: "Usuario no encontrado" });
 
     const user = userResult.rows[0];
@@ -143,21 +143,21 @@ app.post('/api/login', async (req, res) => {
     if (!validPassword) return res.status(400).json({ error: "Contraseña incorrecta" });
 
     const token = jwt.sign(
-        { id: user.id, email: user.email, role: user.role, faculty_id: user.faculty_id }, 
-        SECRET_KEY, 
-        { expiresIn: '24h' }
+      { id: user.id, email: user.email, role: user.role, faculty_id: user.faculty_id },
+      SECRET_KEY,
+      { expiresIn: '24h' }
     );
     res.cookie('access_token', token, COOKIE_OPTIONS);
-    res.json({ 
-        message: "Login exitoso", 
-        user: { email: user.email, role: user.role, faculty_id: user.faculty_id } 
+    res.json({
+      message: "Login exitoso",
+      user: { email: user.email, role: user.role, faculty_id: user.faculty_id }
     });
   } catch (err) { res.status(500).json({ error: "Error de servidor" }); }
 });
 
 // --- C. Registro ---
 app.post("/api/register", async (req, res) => {
-  const { email, password, name, faculty_id } = req.body; 
+  const { email, password, name, faculty_id } = req.body;
 
   try {
     const user = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
@@ -171,9 +171,9 @@ app.post("/api/register", async (req, res) => {
 
     let role = 'visitor';
     if (email.endsWith('@uce.edu.ec')) {
-        role = 'student';
+      role = 'student';
     }
-    
+
     const newUser = await pool.query(
       `INSERT INTO users (email, password, role, name, faculty_id) 
        VALUES ($1, $2, $3, $4, $5) 
@@ -181,54 +181,60 @@ app.post("/api/register", async (req, res) => {
       [email, bcryptPassword, role, name || null, faculty_id || null]
     );
 
-    const token = jwt.sign({ user: newUser.rows[0].id }, process.env.jwtSecret || SECRET_KEY, { expiresIn: "1h" });
+    // Usamos SECRET_KEY para ser consistentes con el login
+    const token = jwt.sign(
+      { id: newUser.rows[0].id, email: newUser.rows[0].email, role: role, faculty_id: faculty_id || null },
+      SECRET_KEY,
+      { expiresIn: '24h' }
+    );
 
-    res.cookie("token", token, {
+    // CORRECCIÓN: Usamos "access_token" igual que en el login
+    res.cookie("access_token", token, {
       httpOnly: true,
-      secure: false, 
+      secure: false, // true si usas HTTPS en producción
       sameSite: 'lax'
     });
 
     return res.json({ token, user: newUser.rows[0] });
 
   } catch (err) {
-    console.error("Error en registro:", err.message); 
-    res.status(500).json({ error: "Error en el servidor", details: err.message }); 
+    console.error("Error en registro:", err.message);
+    res.status(500).json({ error: "Error en el servidor", details: err.message });
   }
 });
 
 // --- D. Logout ---
 app.post('/api/logout', (req, res) => {
-    res.clearCookie('access_token');
-    res.clearCookie('token'); // Limpiamos ambas por si acaso
-    res.json({ message: "Sesión cerrada" });
+  res.clearCookie('access_token');
+  res.clearCookie('token'); // Limpiamos ambas por si acaso
+  res.json({ message: "Sesión cerrada" });
 });
 
 // --- E. Perfil ---
 app.get('/api/profile', verifyToken, async (req, res) => {
-    try {
-        const userResult = await pool.query("SELECT id, email, role, faculty_id, name, avatar, google_id FROM users WHERE id = $1", [req.user.id]);
-        
-        if (userResult.rows.length > 0) {
-            res.json({ user: userResult.rows[0] });
-        } else {
-            res.status(404).json({ error: "Usuario no encontrado" });
-        }
-    } catch (error) {
-        res.status(500).json({ error: "Error obteniendo perfil" });
+  try {
+    const userResult = await pool.query("SELECT id, email, role, faculty_id, name, avatar, google_id FROM users WHERE id = $1", [req.user.id]);
+
+    if (userResult.rows.length > 0) {
+      res.json({ user: userResult.rows[0] });
+    } else {
+      res.status(404).json({ error: "Usuario no encontrado" });
     }
+  } catch (error) {
+    res.status(500).json({ error: "Error obteniendo perfil" });
+  }
 });
 
 // ==========================================
 // 7. RUTAS DE DATOS (PROTEGIDAS)
 // ==========================================
 
-app.use('/api/locations', locationRoutes); 
+app.use('/api/locations', locationRoutes);
 
 const isPastDate = (dateStr, timeStr) => {
-    const eventDate = new Date(`${dateStr}T${timeStr || '00:00:00'}`);
-    const now = new Date();
-    return eventDate < now;
+  const eventDate = new Date(`${dateStr}T${timeStr || '00:00:00'}`);
+  const now = new Date();
+  return eventDate < now;
 };
 
 // --- API EVENTOS ---
@@ -242,16 +248,16 @@ app.get('/api/events', async (req, res) => {
     `;
     const result = await pool.query(query);
     res.json(result.rows);
-  } catch (err) { 
+  } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Error cargando eventos" }); 
+    res.status(500).json({ error: "Error cargando eventos" });
   }
 });
 
 app.post('/api/events', verifyToken, async (req, res) => {
   try {
     const { title, description, date, time, location_id } = req.body;
-    
+
     if (isPastDate(date, time)) return res.status(400).json({ error: "No puedes crear eventos en fechas pasadas." });
 
     const newEvent = await pool.query(
@@ -262,7 +268,7 @@ app.post('/api/events', verifyToken, async (req, res) => {
     const usersResult = await pool.query("SELECT email FROM users");
     const emailList = usersResult.rows.map(user => user.email);
     if (emailList.length > 0) {
-        sendEventNotification(emailList, title, date, description).catch(console.error); 
+      sendEventNotification(emailList, title, date, description).catch(console.error);
     }
 
     res.json(newEvent.rows[0]);
@@ -270,20 +276,20 @@ app.post('/api/events', verifyToken, async (req, res) => {
 });
 
 app.put('/api/events/:id', verifyToken, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { title, description, date, time, location_id } = req.body;
-      
-      if (isPastDate(date, time)) return res.status(400).json({ error: "Fecha inválida (pasado)." });
+  try {
+    const { id } = req.params;
+    const { title, description, date, time, location_id } = req.body;
 
-      const result = await pool.query(
-        "UPDATE events SET title=$1, description=$2, date=$3, time=$4, location_id=$5 WHERE id=$6 RETURNING *",
-        [title, description, date, time, parseInt(location_id), id]
-      );
-      
-      if (result.rows.length === 0) return res.status(404).json({ error: "Evento no encontrado" });
-      res.json(result.rows[0]);
-    } catch (err) { res.status(500).json({ error: "Error SQL: " + err.message }); }
+    if (isPastDate(date, time)) return res.status(400).json({ error: "Fecha inválida (pasado)." });
+
+    const result = await pool.query(
+      "UPDATE events SET title=$1, description=$2, date=$3, time=$4, location_id=$5 WHERE id=$6 RETURNING *",
+      [title, description, date, time, parseInt(location_id), id]
+    );
+
+    if (result.rows.length === 0) return res.status(404).json({ error: "Evento no encontrado" });
+    res.json(result.rows[0]);
+  } catch (err) { res.status(500).json({ error: "Error SQL: " + err.message }); }
 });
 
 app.delete('/api/events/:id', verifyToken, async (req, res) => {
