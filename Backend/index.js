@@ -8,7 +8,7 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const cookieParser = require('cookie-parser');
 require('dotenv').config();
 
-// Redis (Lo mantenemos para caché si lo usas a futuro)
+// Redis
 const { createClient } = require('redis');
 const path = require('path');
 const fs = require('fs');
@@ -75,7 +75,7 @@ redisClient.on('error', (err) => console.log('❌ Error Redis', err));
 })();
 
 // ==========================================
-// 5. GOOGLE OAUTH (VISITANTES)
+// 5. GOOGLE OAUTH
 // ==========================================
 if (process.env.GOOGLE_CLIENT_ID) {
   passport.use(new GoogleStrategy({
@@ -110,8 +110,6 @@ if (process.env.GOOGLE_CLIENT_ID) {
 // ==========================================
 // 6. RUTAS DE AUTENTICACIÓN
 // ==========================================
-
-// --- A. Google ---
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 app.get('/auth/google/callback',
@@ -128,7 +126,6 @@ app.get('/auth/google/callback',
   }
 );
 
-// --- B. Login Manual ---
 app.post('/api/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -155,7 +152,6 @@ app.post('/api/login', async (req, res) => {
   } catch (err) { res.status(500).json({ error: "Error de servidor" }); }
 });
 
-// --- C. Registro ---
 app.post("/api/register", async (req, res) => {
   const { email, password, name, faculty_id } = req.body;
 
@@ -181,17 +177,15 @@ app.post("/api/register", async (req, res) => {
       [email, bcryptPassword, role, name || null, faculty_id || null]
     );
 
-    // Usamos SECRET_KEY para ser consistentes con el login
     const token = jwt.sign(
       { id: newUser.rows[0].id, email: newUser.rows[0].email, role: role, faculty_id: faculty_id || null },
       SECRET_KEY,
       { expiresIn: '24h' }
     );
 
-    // CORRECCIÓN: Usamos "access_token" igual que en el login
     res.cookie("access_token", token, {
       httpOnly: true,
-      secure: false, // true si usas HTTPS en producción
+      secure: false,
       sameSite: 'lax'
     });
 
@@ -203,14 +197,12 @@ app.post("/api/register", async (req, res) => {
   }
 });
 
-// --- D. Logout ---
 app.post('/api/logout', (req, res) => {
   res.clearCookie('access_token');
-  res.clearCookie('token'); // Limpiamos ambas por si acaso
+  res.clearCookie('token');
   res.json({ message: "Sesión cerrada" });
 });
 
-// --- E. Perfil ---
 app.get('/api/profile', verifyToken, async (req, res) => {
   try {
     const userResult = await pool.query("SELECT id, email, role, faculty_id, name, avatar, google_id FROM users WHERE id = $1", [req.user.id]);
@@ -237,9 +229,24 @@ const isPastDate = (dateStr, timeStr) => {
   return eventDate < now;
 };
 
-// --- API EVENTOS ---
+// --- API EVENTOS (OPTIMIZADO CON REDIS) ---
+
+// 1. GET Eventos: Lee de Redis primero
 app.get('/api/events', async (req, res) => {
   try {
+    const CACHE_KEY = 'all_events';
+
+    // A. INTENTO DE LEER CACHÉ (REDIS)
+    const cachedData = await redisClient.get(CACHE_KEY);
+
+    if (cachedData) {
+      // Si existe en caché, respondemos con eso y NO tocamos SQL
+      console.log("⚡ [REDIS] Entregando eventos desde memoria RAM (Caché)");
+      return res.json(JSON.parse(cachedData));
+    }
+
+    // B. SI NO HAY CACHÉ, LEER DE SQL (POSTGRES)
+    console.log("🐢 [SQL] Consultando base de datos (Disco)");
     const query = `
       SELECT e.id, e.title, e.description, e.date, e.time, l.name as location_name, e.location_id 
       FROM events e 
@@ -247,6 +254,11 @@ app.get('/api/events', async (req, res) => {
       ORDER BY e.date DESC
     `;
     const result = await pool.query(query);
+
+    // C. GUARDAR EN CACHÉ PARA LA PRÓXIMA
+    // 'EX: 3600' significa que expira en 1 hora
+    await redisClient.set(CACHE_KEY, JSON.stringify(result.rows), { EX: 3600 });
+
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -254,6 +266,7 @@ app.get('/api/events', async (req, res) => {
   }
 });
 
+// 2. POST Eventos: Borra caché al crear
 app.post('/api/events', verifyToken, async (req, res) => {
   try {
     const { title, description, date, time, location_id } = req.body;
@@ -265,6 +278,12 @@ app.post('/api/events', verifyToken, async (req, res) => {
       [title, description, date, time, location_id]
     );
 
+    // --- INVALIDACIÓN DE CACHÉ ---
+    // Como los datos cambiaron, borramos la caché vieja para obligar a recargar
+    await redisClient.del('all_events');
+    console.log("🗑️ [REDIS] Caché invalidada por nuevo evento");
+
+    // Enviar correos
     const usersResult = await pool.query("SELECT email FROM users");
     const emailList = usersResult.rows.map(user => user.email);
     if (emailList.length > 0) {
@@ -275,6 +294,7 @@ app.post('/api/events', verifyToken, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// 3. PUT Eventos: Borra caché al actualizar
 app.put('/api/events/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -288,13 +308,24 @@ app.put('/api/events/:id', verifyToken, async (req, res) => {
     );
 
     if (result.rows.length === 0) return res.status(404).json({ error: "Evento no encontrado" });
+
+    // --- INVALIDACIÓN DE CACHÉ ---
+    await redisClient.del('all_events');
+    console.log("🗑️ [REDIS] Caché invalidada por actualización");
+
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: "Error SQL: " + err.message }); }
 });
 
+// 4. DELETE Eventos: Borra caché al eliminar
 app.delete('/api/events/:id', verifyToken, async (req, res) => {
   try {
     await pool.query("DELETE FROM events WHERE id = $1", [req.params.id]);
+    
+    // --- INVALIDACIÓN DE CACHÉ ---
+    await redisClient.del('all_events');
+    console.log("🗑️ [REDIS] Caché invalidada por eliminación");
+    
     res.json({ message: "Eliminado" });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

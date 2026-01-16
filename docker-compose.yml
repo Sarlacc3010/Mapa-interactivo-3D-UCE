@@ -83,6 +83,18 @@ services:
     volumes:
       - redis_data:/data
 
+  # --- 6. VISOR REDIS (Redis Commander) ---
+  redis-commander:
+    container_name: uce_redis_commander
+    image: rediscommander/redis-commander:latest
+    restart: always
+    environment:
+      - REDIS_HOSTS=local:redis_cache:6379
+    ports:
+      - "8082:8081"
+    depends_on:
+      - redis_cache
+
 volumes:
   pg_data:
   redis_data:
