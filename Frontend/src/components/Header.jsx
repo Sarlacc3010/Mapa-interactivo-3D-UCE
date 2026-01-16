@@ -15,10 +15,10 @@ export function Header({ className, children }) {
         {/* Textos */}
         <div className="text-white flex flex-col justify-center">
           <h2 className="text-sm sm:text-base font-bold uppercase tracking-widest leading-none text-shadow-sm">
-            Universidad Central
+            MAPA INTERACTIVO 3D
           </h2>
           <span className="text-xs sm:text-sm font-medium tracking-wide text-white/90">
-            del Ecuador
+            Universidad Central del Ecuador
           </span>
           {/* Lema en latín - visible solo en pantallas medianas hacia arriba */}
           <p className="hidden md:block text-[10px] text-blue-200 italic font-serif mt-0.5 tracking-wider opacity-80">
