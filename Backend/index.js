@@ -369,6 +369,40 @@ app.post('/visits', verifyToken, async (req, res) => {
 });
 
 // ==========================================
+// RUTA: ESTADÍSTICAS POR HORA (Para Gráfica de Área)
+// ==========================================
+app.get('/api/analytics/peak-hours', verifyToken, async (req, res) => {
+    try {
+        // Consulta SQL PRO: Agrupa las visitas por hora del día actual
+        const query = `
+            SELECT 
+                EXTRACT(HOUR FROM visit_date) as hour, 
+                COUNT(*) as count 
+            FROM visits 
+            WHERE visit_date >= CURRENT_DATE 
+            GROUP BY hour 
+            ORDER BY hour ASC;
+        `;
+        
+        const result = await pool.query(query);
+        
+        // Formateamos para que el Frontend lo lea fácil (rellenamos horas vacías)
+        const fullDayStats = Array.from({ length: 24 }, (_, i) => {
+            const found = result.rows.find(r => parseInt(r.hour) === i);
+            return {
+                name: `${i}:00`, // Etiqueta X (08:00)
+                visitas: found ? parseInt(found.count) : 0 // Valor Y
+            };
+        });
+
+        res.json(fullDayStats);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Error calculando estadísticas" });
+    }
+});
+
+// ==========================================
 // 10. INICIAR SERVIDOR (USANDO SERVER.LISTEN)
 // ==========================================
 // IMPORTANTE: Cambiamos app.listen por server.listen para que funcionen los sockets
