@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@tanstack/react-query": "^5.90.18",
+    "socket.io": "^4.8.3"
+  }
+}

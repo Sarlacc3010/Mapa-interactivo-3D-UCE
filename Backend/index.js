@@ -6,6 +6,10 @@ const jwt = require('jsonwebtoken');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const cookieParser = require('cookie-parser');
+// --- 1. IMPORTACIONES NUEVAS PARA SOCKETS ---
+const http = require('http'); 
+const { Server } = require('socket.io');
+// --------------------------------------------
 require('dotenv').config();
 
 // Redis
@@ -22,7 +26,37 @@ const app = express();
 const PORT = 5000;
 
 // ==========================================
-// 1. MIDDLEWARES GLOBALES
+// 2. CONFIGURACIÓN DEL SERVIDOR WEBSOCKET
+// ==========================================
+// Envolvemos la app de Express en un servidor HTTP nativo
+const server = http.createServer(app);
+
+// Inicializamos Socket.io
+const io = new Server(server, {
+  cors: {
+    origin: ['http://localhost:5173', 'http://127.0.0.1:5173'], // Tus orígenes permitidos
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true
+  }
+});
+
+// Middleware para inyectar 'io' en todas las peticiones
+// Esto permite usar req.io.emit(...) en cualquier ruta (incluida locations.js)
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
+// Escuchar conexiones de clientes (Solo para debug)
+io.on('connection', (socket) => {
+  console.log(`🔌 Cliente conectado al Socket: ${socket.id}`);
+  socket.on('disconnect', () => {
+    console.log(`❌ Cliente desconectado: ${socket.id}`);
+  });
+});
+
+// ==========================================
+// 3. MIDDLEWARES GLOBALES
 // ==========================================
 app.use(cors({
   origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
@@ -42,7 +76,7 @@ const COOKIE_OPTIONS = {
 };
 
 // ==========================================
-// 2. CONFIGURACIÓN DE IMÁGENES
+// 4. CONFIGURACIÓN DE IMÁGENES
 // ==========================================
 const uploadDir = path.join(__dirname, 'public', 'uploads');
 if (!fs.existsSync(uploadDir)) {
@@ -51,7 +85,7 @@ if (!fs.existsSync(uploadDir)) {
 app.use('/uploads', express.static(uploadDir));
 
 // ==========================================
-// 3. CONEXIÓN BASE DE DATOS SQL (Postgres)
+// 5. CONEXIÓN BASE DE DATOS SQL (Postgres)
 // ==========================================
 const pool = new Pool({
   user: process.env.DB_USER,
@@ -63,7 +97,7 @@ const pool = new Pool({
 const SECRET_KEY = process.env.JWT_SECRET;
 
 // ==========================================
-// 4. CONEXIÓN REDIS
+// 6. CONEXIÓN REDIS
 // ==========================================
 const redisClient = createClient({
   url: `redis://${process.env.REDIS_HOST || 'localhost'}:${process.env.REDIS_PORT || 6379}`
@@ -75,7 +109,7 @@ redisClient.on('error', (err) => console.log('❌ Error Redis', err));
 })();
 
 // ==========================================
-// 5. GOOGLE OAUTH
+// 7. GOOGLE OAUTH
 // ==========================================
 if (process.env.GOOGLE_CLIENT_ID) {
   passport.use(new GoogleStrategy({
@@ -108,7 +142,7 @@ if (process.env.GOOGLE_CLIENT_ID) {
 }
 
 // ==========================================
-// 6. RUTAS DE AUTENTICACIÓN
+// 8. RUTAS DE AUTENTICACIÓN
 // ==========================================
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
@@ -218,7 +252,7 @@ app.get('/api/profile', verifyToken, async (req, res) => {
 });
 
 // ==========================================
-// 7. RUTAS DE DATOS (PROTEGIDAS)
+// 9. RUTAS DE DATOS (PROTEGIDAS)
 // ==========================================
 
 app.use('/api/locations', locationRoutes);
@@ -229,102 +263,96 @@ const isPastDate = (dateStr, timeStr) => {
   return eventDate < now;
 };
 
-// --- API EVENTOS (OPTIMIZADO CON REDIS) ---
+// --- API EVENTOS (OPTIMIZADO CON REDIS + SOCKETS) ---
 
-// 1. GET Eventos: Lee de Redis primero
+// ==========================================
+// 1. GET EVENTOS (PÚBLICO) - CON JOIN
+// ==========================================
 app.get('/api/events', async (req, res) => {
   try {
-    const CACHE_KEY = 'all_events';
-
-    // A. INTENTO DE LEER CACHÉ (REDIS)
-    const cachedData = await redisClient.get(CACHE_KEY);
-
-    if (cachedData) {
-      // Si existe en caché, respondemos con eso y NO tocamos SQL
-      console.log("⚡ [REDIS] Entregando eventos desde memoria RAM (Caché)");
-      return res.json(JSON.parse(cachedData));
+    // 1. Intentar sacar de Redis
+    const cachedEvents = await redisClient.get('all_events');
+    
+    if (cachedEvents) {
+      // OJO: Si acabas de borrar la caché, esto dará null y pasará al paso 2
+      return res.json(JSON.parse(cachedEvents));
     }
 
-    // B. SI NO HAY CACHÉ, LEER DE SQL (POSTGRES)
-    console.log("🐢 [SQL] Consultando base de datos (Disco)");
+    // 2. Si no hay caché, buscar en Postgres CON JOIN
+    // 🔥 EL CAMBIO CLAVE ESTÁ AQUÍ ABAJO:
     const query = `
-      SELECT e.id, e.title, e.description, e.date, e.time, l.name as location_name, e.location_id 
+      SELECT e.*, l.name as location_name 
       FROM events e 
-      LEFT JOIN locations l ON e.location_id = l.id 
-      ORDER BY e.date DESC
+      JOIN locations l ON e.location_id = l.id
+      ORDER BY e.date ASC
     `;
-    const result = await pool.query(query);
+    
+    const allEvents = await pool.query(query);
 
-    // C. GUARDAR EN CACHÉ PARA LA PRÓXIMA
-    // 'EX: 3600' significa que expira en 1 hora
-    await redisClient.set(CACHE_KEY, JSON.stringify(result.rows), { EX: 3600 });
+    // 3. Guardar en Redis el resultado COMPLETO (con el nombre incluido)
+    await redisClient.set('all_events', JSON.stringify(allEvents.rows), { EX: 3600 });
 
-    res.json(result.rows);
+    res.json(allEvents.rows);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Error cargando eventos" });
+    res.status(500).send("Error del servidor");
   }
 });
 
-// 2. POST Eventos: Borra caché al crear
+// 2. POST Eventos
 app.post('/api/events', verifyToken, async (req, res) => {
   try {
-    const { title, description, date, time, location_id } = req.body;
+    // 🔥 AHORA RECIBIMOS end_time
+    const { title, description, date, time, end_time, location_id } = req.body;
 
-    if (isPastDate(date, time)) return res.status(400).json({ error: "No puedes crear eventos en fechas pasadas." });
+    // Validación básica
+    if (isPastDate(date, end_time || time)) return res.status(400).json({ error: "Fecha inválida (pasado)." });
 
     const newEvent = await pool.query(
-      "INSERT INTO events (title, description, date, time, location_id) VALUES($1, $2, $3, $4, $5) RETURNING *",
-      [title, description, date, time, location_id]
+      "INSERT INTO events (title, description, date, time, end_time, location_id) VALUES($1, $2, $3, $4, $5, $6) RETURNING *",
+      [title, description, date, time, end_time, location_id]
     );
 
-    // --- INVALIDACIÓN DE CACHÉ ---
-    // Como los datos cambiaron, borramos la caché vieja para obligar a recargar
     await redisClient.del('all_events');
-    console.log("🗑️ [REDIS] Caché invalidada por nuevo evento");
+    req.io.emit('server:data_updated', { type: 'EVENT_ADDED', data: newEvent.rows[0] });
 
-    // Enviar correos
-    const usersResult = await pool.query("SELECT email FROM users");
-    const emailList = usersResult.rows.map(user => user.email);
-    if (emailList.length > 0) {
-      sendEventNotification(emailList, title, date, description).catch(console.error);
-    }
+    // (Opcional) Enviar correos...
 
     res.json(newEvent.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 3. PUT Eventos: Borra caché al actualizar
+// 3. PUT Eventos
 app.put('/api/events/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, date, time, location_id } = req.body;
-
-    if (isPastDate(date, time)) return res.status(400).json({ error: "Fecha inválida (pasado)." });
+    // 🔥 RECIBIMOS end_time TAMBIÉN AQUÍ
+    const { title, description, date, time, end_time, location_id } = req.body;
 
     const result = await pool.query(
-      "UPDATE events SET title=$1, description=$2, date=$3, time=$4, location_id=$5 WHERE id=$6 RETURNING *",
-      [title, description, date, time, parseInt(location_id), id]
+      "UPDATE events SET title=$1, description=$2, date=$3, time=$4, end_time=$5, location_id=$6 WHERE id=$7 RETURNING *",
+      [title, description, date, time, end_time, parseInt(location_id), id]
     );
 
     if (result.rows.length === 0) return res.status(404).json({ error: "Evento no encontrado" });
 
-    // --- INVALIDACIÓN DE CACHÉ ---
     await redisClient.del('all_events');
-    console.log("🗑️ [REDIS] Caché invalidada por actualización");
+    req.io.emit('server:data_updated', { type: 'EVENT_UPDATED', data: result.rows[0] });
 
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: "Error SQL: " + err.message }); }
 });
 
-// 4. DELETE Eventos: Borra caché al eliminar
+// 4. DELETE Eventos
 app.delete('/api/events/:id', verifyToken, async (req, res) => {
   try {
     await pool.query("DELETE FROM events WHERE id = $1", [req.params.id]);
     
-    // --- INVALIDACIÓN DE CACHÉ ---
+    // --- MAGIA: INVALIDAR CACHÉ Y NOTIFICAR EN VIVO ---
     await redisClient.del('all_events');
-    console.log("🗑️ [REDIS] Caché invalidada por eliminación");
+
+    // 🔥 ENVIAR NOTIFICACIÓN SOCKET
+    req.io.emit('server:data_updated', { type: 'EVENT_DELETED', id: req.params.id });
     
     res.json({ message: "Eliminado" });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -341,8 +369,9 @@ app.post('/visits', verifyToken, async (req, res) => {
 });
 
 // ==========================================
-// 8. INICIAR SERVIDOR
+// 10. INICIAR SERVIDOR (USANDO SERVER.LISTEN)
 // ==========================================
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor Backend listo en http://localhost:${PORT}`);
+// IMPORTANTE: Cambiamos app.listen por server.listen para que funcionen los sockets
+server.listen(PORT, () => {
+  console.log(`🚀 Servidor Backend + Sockets listo en http://localhost:${PORT}`);
 });
