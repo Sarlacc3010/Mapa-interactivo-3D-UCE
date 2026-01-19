@@ -159,9 +159,28 @@ function AppContent() {
     setShowEventsModal(true);
   };
 
+  // 🔥 NUEVO HANDLER: REFRESCAR DATOS CUANDO SE CREA/EDITA/BORRA UN EVENTO
+  const refreshEvents = () => {
+    queryClient.invalidateQueries(['events']);
+  };
+
   // --- RENDERIZADO ---
   if (!userRole) return <Suspense fallback={<ScreenLoader />}><LoginScreen onLogin={() => window.location.reload()} /></Suspense>;
-  if (userRole === 'admin' && viewMode === 'admin') return <Suspense fallback={<ScreenLoader />}><AdminDashboard onLogout={handleLogout} onViewMap={() => setViewMode('map')} events={dbEvents} /></Suspense>;
+  
+  // 🔥 AQUÍ ESTABA EL PROBLEMA: Pasamos los handlers al Dashboard
+  if (userRole === 'admin' && viewMode === 'admin') return (
+    <Suspense fallback={<ScreenLoader />}>
+        <AdminDashboard 
+            onLogout={handleLogout} 
+            onViewMap={() => setViewMode('map')} 
+            events={dbEvents}
+            // Agregamos estas props que faltaban:
+            onAddEvent={refreshEvents}
+            onUpdateEvent={refreshEvents}
+            onDeleteEvent={refreshEvents}
+        />
+    </Suspense>
+  );
 
   return (
     <div id="canvas-container" className="relative h-screen w-screen bg-gray-900 overflow-hidden font-sans flex flex-col">
@@ -231,7 +250,12 @@ function AppContent() {
             </Suspense>
             
             {isFpsMode ? (
-               <FirstPersonController active={isFpsMode} speed={40} />
+               <FirstPersonController 
+                 active={isFpsMode} 
+                 speed={40} 
+                 // OPCIONAL: Si quisieras que ESC cierre el modo FPS, descomenta esto:
+                 // onClose={() => setIsFpsMode(false)}
+               />
             ) : (
                <OrbitControls makeDefault minPolarAngle={0} maxPolarAngle={Math.PI / 2.1} minDistance={50} maxDistance={150} enableDamping={true} dampingFactor={0.05} />
             )}
@@ -242,7 +266,7 @@ function AppContent() {
       <Header className="absolute top-0 left-0 w-full bg-gradient-to-b from-black/80 to-transparent border-none text-white z-50">
         <div className="flex items-center gap-3">
           
-          {/* ✅ TOOLKIT (GUÍA) ARREGLADO */}
+          {/* ✅ TOOLKIT (GUÍA) */}
           {userRole !== 'admin' && (
             <div className="relative group">
               <button className="flex items-center gap-2 text-white/80 text-xs font-medium cursor-help hover:text-white transition-colors bg-white/10 px-3 py-1.5 rounded-full hover:bg-white/20 border border-white/10">
@@ -250,9 +274,6 @@ function AppContent() {
                 <span className="hidden sm:inline">Guía</span>
               </button>
               
-              {/* 1. 'pt-3': Añade relleno arriba transparente para conectar el botón con el menú.
-                  2. Eliminado 'pointer-events-none': Ahora el mouse interactúa con el menú.
-              */}
               <div className="absolute right-0 top-full pt-3 w-72 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 ease-out transform translate-y-2 group-hover:translate-y-0 z-50">
                   <div className="bg-black/90 backdrop-blur-md border border-white/10 p-5 rounded-xl shadow-2xl text-white">
                     <h4 className="text-xs font-bold text-[#D9232D] uppercase mb-4 tracking-wider border-b border-white/10 pb-2">¿Qué puedes hacer?</h4>
@@ -263,7 +284,6 @@ function AppContent() {
                       <li className="flex items-start gap-3"><div className="p-1.5 bg-purple-500/20 rounded-md shrink-0 text-purple-400"><Calendar size={16} /></div><div><p className="font-bold text-white/90">Agenda de Eventos</p><p className="text-white/60 leading-snug">Entérate de las actividades.</p></div></li>
                       {userRole === 'student' && (<li className="flex items-start gap-3 bg-white/5 p-2 rounded border border-white/10"><div className="p-1.5 bg-red-500/20 rounded-md shrink-0 text-red-400"><MapPin size={16} /></div><div><p className="font-bold text-white/90">Tu Facultad</p><p className="text-white/60 leading-snug">Tu edificio está señalado con un pin.</p></div></li>)}
                     </ul>
-                    {/* Flechita decorativa del menú */}
                     <div className="absolute top-[6px] right-6 w-3 h-3 bg-black/90 border-t border-l border-white/10 transform rotate-45"></div>
                   </div>
               </div>

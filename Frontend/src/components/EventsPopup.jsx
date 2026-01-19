@@ -4,7 +4,35 @@ import { X, Calendar, Clock, MapPin, CalendarDays } from 'lucide-react';
 export function EventsPopup({ isOpen, onClose, locationName, events }) {
   if (!isOpen) return null;
 
-  const localEvents = events.filter(e => e.location_name === locationName);
+  // 🔥 LÓGICA CORREGIDA: FILTRAR Y ORDENAR
+  const localEvents = events
+    .filter(e => {
+        // 1. Filtro por Lugar
+        if (e.location_name !== locationName) return false;
+
+        // 2. Filtro de Tiempo (Excluir pasados)
+        const now = new Date();
+        
+        // Limpiamos la fecha (YYYY-MM-DD)
+        const datePart = e.date.split('T')[0];
+        
+        // Definimos la hora límite:
+        // Si tiene 'end_time', usamos esa. Si no, usamos 'time' (inicio). 
+        // Si no tiene hora, asumimos que dura todo el día (23:59).
+        const timePart = e.end_time || e.time || "23:59";
+
+        // Creamos objeto fecha del evento
+        const eventEnd = new Date(`${datePart}T${timePart}`);
+
+        // Retornamos TRUE solo si el evento termina en el futuro (o es ahora mismo)
+        return eventEnd >= now;
+    })
+    .sort((a, b) => {
+        // 3. Ordenar: El evento más próximo aparece primero
+        const dateA = new Date(`${a.date.split('T')[0]}T${a.time || "00:00"}`);
+        const dateB = new Date(`${b.date.split('T')[0]}T${b.time || "00:00"}`);
+        return dateA - dateB;
+    });
 
   const getDateParts = (dateString) => {
     if (!dateString) return { month: '---', day: '--' };
@@ -35,8 +63,7 @@ export function EventsPopup({ isOpen, onClose, locationName, events }) {
         className="relative w-full max-w-lg bg-gray-50 rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-8 duration-300 flex flex-col max-h-[85vh] border border-white/20"
       >
         
-        {/* --- CABECERA SUAVIZADA --- */}
-        {/* CAMBIO 1: Agregamos 'via-[#...]' para que la transición Azul->Rojo no sea tan agresiva */}
+        {/* --- CABECERA --- */}
         <div className="relative p-6 shrink-0 bg-gradient-to-r from-[#1e3a8a] via-[#8b2555] to-[#D9232D] text-white overflow-hidden">
            
            {/* Decoración suave */}
@@ -49,7 +76,6 @@ export function EventsPopup({ isOpen, onClose, locationName, events }) {
                     <CalendarDays size={12} /> Agenda Institucional
                 </div>
                 
-                {/* CAMBIO 2: 'font-bold' en lugar de 'font-black' para adelgazar la letra */}
                 <h2 className="text-2xl font-bold leading-tight drop-shadow-sm pr-6 text-white tracking-tight">
                     {locationName}
                 </h2>
@@ -78,9 +104,9 @@ export function EventsPopup({ isOpen, onClose, locationName, events }) {
                     <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm border border-gray-100">
                         <Calendar size={28} className="text-gray-300" />
                     </div>
-                    <h3 className="text-[#1e3a8a] font-bold text-base">Sin actividades</h3>
+                    <h3 className="text-[#1e3a8a] font-bold text-base">Sin actividades próximas</h3>
                     <p className="text-gray-500 text-xs mt-1 max-w-[200px]">
-                        No hay eventos programados.
+                        No hay eventos programados a futuro.
                     </p>
                 </div>
             ) : (

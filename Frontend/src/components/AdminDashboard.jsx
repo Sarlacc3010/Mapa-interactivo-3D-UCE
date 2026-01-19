@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { useLocations } from "../hooks/useLocations";
 import { Sidebar } from "./Dashboard/Sidebar";
-import { AnalyticsTab } from "./Dashboard/AnalyticsTab";
-import { EventsTab } from "./Dashboard/EventsTab";
+import { AnalyticsTab } from "./dashboard/AnalyticsTab";
+import { EventsTab } from "./dashboard/EventsTab";
 
 export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDeleteEvent, onUpdateEvent }) {
   const [activeTab, setActiveTab] = useState('events');
