@@ -1,31 +1,58 @@
 import React from 'react';
-import { Plus, Minus, Compass, MousePointer2 } from "lucide-react";
+import { Plus, Minus, Compass, MousePointer2, Move, ZoomIn } from "lucide-react";
 
 export function ZoomControls() {
   return (
-    <div className="absolute bottom-8 right-8 z-10 flex flex-col gap-3">
-      {[Plus, Minus, Compass].map((Icon, i) => (
-        <button key={i} className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white shadow-lg flex items-center justify-center hover:bg-gray-50 text-gray-700 transition-all active:scale-90 border border-gray-100">
-          <Icon className="w-5 h-5" />
-        </button>
-      ))}
+    <div className="absolute bottom-24 right-6 z-10 flex flex-col bg-black/40 backdrop-blur-md rounded-lg border border-white/10 overflow-hidden shadow-xl">
+      <button 
+        className="p-3 text-white/90 hover:bg-white/20 hover:text-white transition-colors border-b border-white/10" 
+        title="Acercar"
+      >
+        <Plus className="w-5 h-5" />
+      </button>
+      <button 
+        className="p-3 text-white/90 hover:bg-white/20 hover:text-white transition-colors border-b border-white/10" 
+        title="Alejar"
+      >
+        <Minus className="w-5 h-5" />
+      </button>
+      <button 
+        className="p-3 text-white/90 hover:bg-white/20 hover:text-white transition-colors" 
+        title="Resetear Orientación"
+      >
+        <Compass className="w-5 h-5" />
+      </button>
     </div>
   );
 }
 
 export function Instructions() {
   return (
-    <div className="absolute bottom-8 left-8 z-10 hidden md:block">
-      <div className="bg-white/90 backdrop-blur-md px-4 py-3 rounded-xl shadow-lg border border-white/50 flex items-center gap-4 text-xs text-gray-600">
+    <div className="absolute bottom-8 left-8 z-10 hidden md:flex animate-in fade-in slide-in-from-bottom-4 duration-700 select-none">
+      <div className="flex items-center gap-6 px-5 py-2.5 bg-black/40 backdrop-blur-md rounded-full border border-white/10 shadow-2xl text-xs font-medium text-white/80">
+         
+         {/* Rotar */}
          <div className="flex items-center gap-2">
-            <span className="bg-gray-100 border border-gray-200 px-1.5 py-1 rounded font-mono font-bold text-gray-800">WASD</span>
-            <span>Moverse</span>
+            <MousePointer2 className="w-3.5 h-3.5 text-[#D9232D]" />
+            <span><b className="text-white">Click Izq</b> Rotar</span>
          </div>
-         <div className="w-px h-4 bg-gray-300"></div>
+
+         <div className="w-px h-3 bg-white/20"></div>
+
+         {/* Pan */}
          <div className="flex items-center gap-2">
-            <MousePointer2 className="w-4 h-4" />
-            <span>Rotar y Zoom</span>
+            <Move className="w-3.5 h-3.5 text-blue-400" />
+            <span><b className="text-white">Click Der</b> Mover</span>
          </div>
+
+         <div className="w-px h-3 bg-white/20"></div>
+
+         {/* Zoom */}
+         <div className="flex items-center gap-2">
+            <ZoomIn className="w-3.5 h-3.5 text-yellow-400" />
+            <span><b className="text-white">Rueda</b> Zoom</span>
+         </div>
+         
       </div>
     </div>
   );
