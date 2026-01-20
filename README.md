@@ -48,7 +48,7 @@ El proyecto utiliza una arquitectura de microservicios contenerizada.
 | :--- | :--- |
 | **Frontend 3D** | ![React](https://img.shields.io/badge/-React-black?logo=react) ![Tailwind](https://img.shields.io/badge/-Tailwind-black?logo=tailwindcss) ![R3F](https://img.shields.io/badge/-React%20Three%20Fiber-black) ![Recharts](https://img.shields.io/badge/-Recharts-black) |
 | **Backend API** | ![Node](https://img.shields.io/badge/-Node.js-black?logo=node.js) ![Express](https://img.shields.io/badge/-Express-black) ![Passport](https://img.shields.io/badge/-Passport.js-black) ![JWT](https://img.shields.io/badge/-JWT-black) |
-| **Data Layer** | ![Postgres](https://img.shields.io/badge/-PostgreSQL-black?logo=postgresql) ![Mongo](https://img.shields.io/badge/-MongoDB-black?logo=mongodb) ![Redis](https://img.shields.io/badge/-Redis-black?logo=redis) |
+| **Data Layer** | ![Postgres](https://img.shields.io/badge/-PostgreSQL-black?logo=postgresql) ![Redis](https://img.shields.io/badge/-Redis-black?logo=redis) |
 | **DevOps** | ![Docker](https://img.shields.io/badge/-Docker-black?logo=docker) ![Nginx](https://img.shields.io/badge/-Nginx-black?logo=nginx) |
 
 ---
