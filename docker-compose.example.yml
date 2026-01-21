@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  # --- 1. BACKEND ---
+  backend:
+    build: ./Backend
+    container_name: uce_backend
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - DB_HOST=postgres_db
+      - DB_USER=admin_sql
+      - DB_PASSWORD=cambiar_esta_contraseña_db  # ⚠️ ¡CAMBIAR!
+      - DB_NAME=uce_main_db
+      - DB_PORT=5432
+      - REDIS_HOST=redis_cache
+      - REDIS_PORT=6379
+      - JWT_SECRET=cambiar_este_secreto_jwt      # ⚠️ ¡CAMBIAR!
+      - UPLOAD_PATH=/app/public/uploads
+    depends_on:
+      - postgres_db
+      - redis_cache
+
+  # --- 2. FRONTEND (Producción) ---
+  frontend:
+    build: ./Frontend
+    container_name: uce_frontend
+    restart: always
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    # Nota: Si usas Vite, las variables de entorno VITE_ suelen definirse 
+    # en tiempo de construcción (build) o en un archivo .env dentro de Frontend/
+
+  # --- 3. BASE DE DATOS SQL ---
+  postgres_db:
+    image: postgres:15-alpine
+    container_name: uce_sql
+    restart: always
+    environment:
+      POSTGRES_USER: admin_sql
+      POSTGRES_PASSWORD: cambiar_esta_contraseña_db # ⚠️ Debe coincidir con backend
+      POSTGRES_DB: uce_main_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  # --- 4. VISOR SQL (PgAdmin) ---
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: uce_pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin-mapa@uce.edu.ec
+      PGADMIN_DEFAULT_PASSWORD: cambiar_password_admin # ⚠️ ¡CAMBIAR!
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres_db
+
+  # --- 5. CACHÉ (Redis) ---
+  redis_cache:
+    image: redis:alpine
+    container_name: uce_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    # Este comando asegura que Redis guarde datos en disco cada 60s si hay cambios
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+
+  # --- 6. VISOR REDIS ---
+  redis-commander:
+    container_name: uce_redis_commander
+    image: rediscommander/redis-commander:latest
+    restart: always
+    environment:
+      - REDIS_HOSTS=local:redis_cache:6379
+    ports:
+      - "8082:8081"
+    depends_on:
+      - redis_cache
+
+volumes:
+  pg_data:
+  redis_data:
