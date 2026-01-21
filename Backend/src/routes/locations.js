@@ -1,19 +1,60 @@
-// Backend/src/routes/locations.js
 const express = require('express');
 const router = express.Router();
-const pool = require('../config/db'); 
+const pool = require('../config/db');
 const verifyToken = require('../middlewares/authMiddleware');
-const jwt = require('jsonwebtoken'); // Necesario para verificar token manualmente
+const jwt = require('jsonwebtoken'); 
+const redisClient = require('../config/redis'); 
+
+const CACHE_KEY = 'locations:all'; 
 
 // ==========================================
-// 1. OBTENER UBICACIONES (PÚBLICO)
+// 1. OBTENER UBICACIONES (CON LOGS DE DEPURACIÓN)
 // ==========================================
 router.get('/', async (req, res) => {
   try {
+    let data = null;
+    let isCached = false;
+
+    // A. Intentar leer de Redis
+    try {
+        if (redisClient.isReady) { // Solo intentamos si Redis está listo
+            const cachedData = await redisClient.get(CACHE_KEY);
+            if (cachedData) {
+                console.log('🚀 [CACHE HIT] Datos servidos desde Redis');
+                data = JSON.parse(cachedData);
+                isCached = true;
+            }
+        } else {
+            console.warn('⚠️ [CACHE SKIP] Redis no está listo todavía.');
+        }
+    } catch (redisErr) {
+        console.error('❌ Error leyendo Redis:', redisErr.message);
+    }
+
+    // Si encontramos caché, respondemos y terminamos aquí
+    if (isCached && data) {
+        return res.json(data);
+    }
+
+    // B. Si no hay caché, leer de Base de Datos
+    console.log('🐢 [DB READ] Consultando PostgreSQL...');
     const result = await pool.query("SELECT * FROM locations ORDER BY id ASC");
-    res.json(result.rows);
+    data = result.rows;
+
+    // C. Guardar en Redis (Si está disponible)
+    try {
+        if (redisClient.isReady) {
+            // Guardamos por 1 hora (3600 segundos)
+            await redisClient.setEx(CACHE_KEY, 3600, JSON.stringify(data));
+            console.log('💾 [CACHE SAVE] Datos guardados en Redis correctamente.');
+        }
+    } catch (saveErr) {
+        console.error('❌ Error guardando en Redis:', saveErr.message);
+    }
+
+    res.json(data);
   } catch (err) {
-    console.error(err.message);
+    console.error("❌ Error CRÍTICO en GET /locations:", err.message);
     res.status(500).send("Error del servidor");
   }
 });
@@ -21,51 +62,44 @@ router.get('/', async (req, res) => {
 // ==========================================
 // 2. REGISTRAR VISITA (PÚBLICO / MIXTO)
 // ==========================================
-// 🔥 QUITAMOS 'verifyToken' del middleware principal para no bloquear anónimos
 router.post('/:id/visit', async (req, res) => {
   try {
     const { id } = req.params; 
-    
-    // Valor por defecto para anónimos
     let userEmail = 'anonimo@visitante.com'; 
 
-    // Intentamos leer el token manualmente sin bloquear la petición
+    // Intentamos extraer el usuario del token (si existe)
     const token = req.cookies.access_token || (req.headers['authorization'] && req.headers['authorization'].split(' ')[1]);
     
     if (token) {
         try {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            userEmail = decoded.email; // Si el token es válido, usamos el email real
-        } catch (e) {
-            // Si el token es inválido o expiró, simplemente seguimos como anónimo
+            userEmail = decoded.email;
+        } catch (e) { 
+            // Si el token expiró o es inválido, contamos como anónimo y no rompemos el flujo
             console.log("Token inválido en visita, registrando como anónimo.");
         }
     }
 
-    // A. Guardar en Base de Datos
-    await pool.query(
-      "INSERT INTO visits (location_id, visitor_email) VALUES ($1, $2)", 
-      [id, userEmail]
-    );
+    // Registrar en BD
+    await pool.query("INSERT INTO visits (location_id, visitor_email) VALUES ($1, $2)", [id, userEmail]);
 
-    // B. Notificar al Dashboard en Tiempo Real
+    // Emitir evento Socket.io (Tiempo Real)
     if (req.io) {
-        req.io.emit('server:visit_registered', { 
-            location_id: id, 
-            timestamp: new Date() 
-        });
+        req.io.emit('server:visit_registered', { location_id: id, timestamp: new Date() });
     }
 
-    res.json({ message: "Visita registrada con éxito" });
+    res.json({ message: "Visita registrada correctamente" });
   } catch (err) {
     console.error("Error registrando visita:", err.message);
-    res.status(500).json({ error: "Error al registrar visita" });
+    res.status(500).json({ error: "Error interno al registrar visita" });
   }
 });
 
 // ==========================================
-// 3. CREAR UBICACIÓN (SOLO ADMIN)
+// 3. RUTAS ADMIN (INVALIDAN CACHÉ 🗑️)
 // ==========================================
+
+// CREAR UBICACIÓN
 router.post('/', verifyToken, async (req, res) => {
   try {
     const { name, description, category, coordinates, object3d_id, faculty_id } = req.body;
@@ -75,6 +109,9 @@ router.post('/', verifyToken, async (req, res) => {
       [name, description, category, JSON.stringify(coordinates), object3d_id, faculty_id]
     );
 
+    // 🔥 Invalidar Caché: Obligamos a recargar datos frescos la próxima vez
+    if (redisClient.isOpen) await redisClient.del(CACHE_KEY);
+
     res.json(newLocation.rows[0]);
   } catch (err) {
     console.error(err.message);
@@ -82,9 +119,7 @@ router.post('/', verifyToken, async (req, res) => {
   }
 });
 
-// ==========================================
-// 4. EDITAR UBICACIÓN
-// ==========================================
+// EDITAR UBICACIÓN
 router.put('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -95,6 +130,9 @@ router.put('/:id', verifyToken, async (req, res) => {
       [name, description, category, JSON.stringify(coordinates), object3d_id, id]
     );
 
+    // 🔥 Invalidar Caché
+    if (redisClient.isOpen) await redisClient.del(CACHE_KEY);
+
     res.json(updateLocation.rows[0]);
   } catch (err) {
     console.error(err.message);
@@ -102,13 +140,15 @@ router.put('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// ==========================================
-// 5. ELIMINAR UBICACIÓN
-// ==========================================
+// ELIMINAR UBICACIÓN
 router.delete('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
     await pool.query("DELETE FROM locations WHERE id = $1", [id]);
+    
+    // 🔥 Invalidar Caché
+    if (redisClient.isOpen) await redisClient.del(CACHE_KEY);
+
     res.json("Ubicación eliminada");
   } catch (err) {
     console.error(err.message);
