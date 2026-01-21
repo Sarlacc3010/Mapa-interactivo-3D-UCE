@@ -4,8 +4,11 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  darkMode: 'class', // 🔥 ESTA LÍNEA ES LA CLAVE
   theme: {
     extend: {},
   },
-  plugins: [],
+  plugins: [
+    require("tailwindcss-animate"), // Asegúrate de tener esto si usas animaciones
+  ],
 }

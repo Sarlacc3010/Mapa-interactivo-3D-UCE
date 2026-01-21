@@ -2,17 +2,40 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Configuración básica para que la app ocupe toda la pantalla */
-body { 
-  margin: 0; 
-  padding: 0; 
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden; 
-  background-color: #1a202c; 
+/* Fondo General Oscuro y Profundo */
+body {
+  background-color: #030712; /* Slate 950 - Casi negro */
+  color: #f8fafc;
+  overflow: hidden; /* Evita scrolls dobles */
 }
 
-#root {
-  width: 100%;
-  height: 100%;
+/* Scrollbar Moderna y Minimalista */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+/* Clases de Utilidad para Neón y Cristal */
+@layer utilities {
+  .glass-panel {
+    @apply bg-slate-900/60 backdrop-blur-xl border border-white/10 shadow-2xl;
+  }
+  
+  .neon-blue {
+    @apply shadow-[0_0_15px_rgba(59,130,246,0.5)] border-blue-500/50 text-blue-400;
+  }
+  
+  .neon-red {
+    @apply shadow-[0_0_15px_rgba(220,38,38,0.5)] border-red-500/50 text-red-400;
+  }
 }

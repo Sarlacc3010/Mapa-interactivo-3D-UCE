@@ -1,31 +1,20 @@
-# --- ETAPA 1: CONSTRUCCIÓN (BUILD) ---
-FROM node:22-alpine as builder
+# 🔥 CAMBIO AQUÍ: Usamos Node 22 en lugar de 18
+FROM node:22-alpine
 
+# Directorio de trabajo
 WORKDIR /app
 
-# Copiamos solo los package.json para instalar dependencias primero (aprovecha caché)
+# Copiamos los archivos de dependencias
 COPY package*.json ./
-# Usamos 'ci' en lugar de 'install' para entornos limpios
-RUN npm ci
 
-# Copiamos el código fuente
+# Instalamos las dependencias
+RUN npm install
+
+# Copiamos el resto del código
 COPY . .
 
-# Construimos la carpeta 'dist'
-RUN npm run build
+# Exponemos el puerto de Vite
+EXPOSE 5173
 
-# --- ETAPA 2: SERVIDOR WEB (NGINX) ---
-# Usamos Nginx, que es ultraligero, solo para servir archivos estáticos
-FROM nginx:alpine
-
-# Copiamos la configuración de Nginx (Opcional, pero recomendado para React Router)
-# COPY nginx.conf /etc/nginx/conf.d/default.conf 
-
-# Copiamos SOLO la carpeta dist creada en la etapa anterior
-COPY --from=builder /app/dist /usr/share/nginx/html
-
-# Nginx corre en el puerto 80 por defecto
-EXPOSE 80
-
-# Ejecutamos Nginx en primer plano
-CMD ["nginx", "-g", "daemon off;"]
+# Comando por defecto
+CMD ["npm", "run", "dev", "--", "--host"]

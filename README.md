@@ -1,6 +1,6 @@
 <div align="center">
 
-  <img src="https://upload.wikimedia.org/wikipedia/commons/e/e4/Escudo_de_la_Universidad_Central_del_Ecuador.svg" alt="Logo UCE" width="120" />
+  <img src="./Frontend/public/uce-logo.png" alt="Logo UCE" width="120" />
 
   # 🗺️ UCE Campus 3D: Interactive Map
   
