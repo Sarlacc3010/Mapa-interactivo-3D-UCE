@@ -1,8 +1,13 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 
-// 1. IMPORTAMOS LIBRERÍAS DE TIEMPO REAL
-import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
-import { io } from 'socket.io-client';
+// 1. IMPORTAMOS LIBRERÍAS DE GESTIÓN DE ESTADO Y SOCKETS
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { SocketProvider } from './context/SocketContext'; // 🔥 Contexto Nuevo
+import api from './api/client'; // 🔥 API Centralizada
+
+// 2. IMPORTAMOS LOS NUEVOS HOOKS INTELIGENTES
+import { useLocations } from './hooks/useLocations';
+import { useEvents } from './hooks/useEvents';
 
 // Librerías Gráficas
 import { Canvas } from '@react-three/fiber';
@@ -24,7 +29,7 @@ const LoginScreen = lazy(() => import('./components/LoginScreen').then(m => ({ d
 const AdminDashboard = lazy(() => import('./components/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
 const Campus3D = lazy(() => import('./Campus3D'));
 
-// --- CONFIGURACIÓN CLIENTE DE DATOS ---
+// Configuración Cliente
 const queryClient = new QueryClient();
 
 // Loaders
@@ -49,40 +54,14 @@ function Loader3D() {
 }
 
 // ====================================================================
-// COMPONENTE PRINCIPAL
+// COMPONENTE PRINCIPAL (LÓGICA + UI)
 // ====================================================================
 function AppContent() {
-  const queryClient = useQueryClient();
+  // 🔥 1. USAMOS LOS HOOKS (Sustituyen a los useQuery manuales)
+  const { locations } = useLocations();
+  const { events: dbEvents } = useEvents();
 
-  // --- 1. CONEXIÓN WEBSOCKET ---
-  useEffect(() => {
-    const socket = io('http://localhost:5000', { withCredentials: true });
-
-    socket.on('connect', () => console.log("🟢 [SOCKET] Conectado"));
-    
-    socket.on('server:data_updated', (payload) => {
-      console.log("🔥 [SOCKET] Cambio detectado:", payload);
-      queryClient.invalidateQueries(['locations']); 
-      queryClient.invalidateQueries(['events']);
-    });
-
-    return () => socket.disconnect();
-  }, [queryClient]);
-
-  // --- 2. OBTENCIÓN DE DATOS ---
-  const { data: locations = [] } = useQuery({
-    queryKey: ['locations'],
-    queryFn: () => fetch('http://localhost:5000/api/locations').then(res => res.json()),
-    staleTime: Infinity,
-  });
-
-  const { data: dbEvents = [] } = useQuery({
-    queryKey: ['events'],
-    queryFn: () => fetch('http://localhost:5000/api/events').then(res => res.json()),
-    staleTime: Infinity,
-  });
-
-  // Estados
+  // Estados UI
   const [userRole, setUserRole] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [viewMode, setViewMode] = useState('map');
@@ -91,7 +70,7 @@ function AppContent() {
   const [welcomeAnimationDone, setWelcomeAnimationDone] = useState(false);
   const [isFpsMode, setIsFpsMode] = useState(false);
 
-  // ⌨️ MAPEO DE TECLAS
+  // Mapeo de Teclas
   const keyboardMap = [
     { name: 'forward', keys: ['ArrowUp', 'w', 'W'] },
     { name: 'backward', keys: ['ArrowDown', 's', 'S'] },
@@ -99,27 +78,25 @@ function AppContent() {
     { name: 'right', keys: ['ArrowRight', 'd', 'D'] },
   ];
 
-  // --- 3. SESIÓN ---
+  // --- SESIÓN ---
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/profile', { credentials: 'include' });
-        if (res.ok) {
-          const data = await res.json();
-          setUserRole(data.user.role);
-          setUserProfile(data.user);
+        // Usamos la instancia de API centralizada
+        const { data } = await api.get('/profile');
+        setUserRole(data.user.role);
+        setUserProfile(data.user);
 
-          const params = new URLSearchParams(window.location.search);
-          if (params.get('loginSuccess')) {
-            window.history.replaceState({}, document.title, "/");
-          }
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('loginSuccess')) {
+          window.history.replaceState({}, document.title, "/");
         }
-      } catch (error) { console.log("No session"); }
+      } catch (error) { console.log("No hay sesión activa"); }
     };
     checkSession();
   }, []);
 
-  // --- 4. BIENVENIDA ---
+  // --- BIENVENIDA ESTUDIANTE ---
   useEffect(() => {
     if (userRole === 'student' && userProfile?.faculty_id && locations.length > 0 && !welcomeAnimationDone) {
         const myFaculty = locations.find(l => String(l.id) === String(userProfile.faculty_id));
@@ -135,23 +112,58 @@ function AppContent() {
   // --- HANDLERS ---
   const handleLogout = async () => {
     try {
-      await fetch('http://localhost:5000/api/logout', { method: 'POST', credentials: 'include' });
+      await api.post('/logout'); // Usando API
       setUserRole(null);
       setUserProfile(null);
       setWelcomeAnimationDone(false);
       setSelectedLoc(null);
       setIsFpsMode(false);
+      window.location.reload();
     } catch (e) { console.error(e); }
   };
 
   const registerVisit = async (locationId) => {
-    try { await fetch(`http://localhost:5000/api/locations/${locationId}/visit`, { method: 'POST' }); } 
-    catch (e) { console.error(e); }
+    try { 
+        // Usando API centralizada (esto activará el socket en el backend)
+        await api.post(`/locations/${locationId}/visit`); 
+    } catch (e) { console.error(e); }
   };
 
   const handleLocationSelect = (loc) => {
+    // 1. Establecer la ubicación seleccionada (Muestra la tarjeta de info)
     setSelectedLoc(loc);
-    if (loc && (loc.id || loc._id)) registerVisit(loc.id || loc._id);
+
+    if (loc?.id) {
+        // 2. Registrar la visita en la BD
+        registerVisit(loc.id);
+
+        // 3. 🔥 LÓGICA DE AUTO-APERTURA DE EVENTOS
+        // Verificamos si existen eventos FUTUROS o DE HOY en este lugar
+        const hasRelevantEvents = dbEvents.some(event => {
+            // A. Coincide el ID del lugar
+            const isSameLocation = String(event.location_id) === String(loc.id);
+            
+            // B. Es una fecha válida (Hoy o Futuro)
+            // Esto evita que salten popups por eventos del año pasado
+            const eventDate = new Date(event.date.split('T')[0] + 'T00:00:00'); // Asegurar formato ISO
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // Resetear hora a las 00:00 para comparar solo fecha
+
+            return isSameLocation && eventDate >= today;
+        });
+
+        console.log(`📍 Lugar: ${loc.name}, ¿Eventos?: ${hasRelevantEvents}`);
+
+        // Si hay eventos, abrimos el popup automáticamente
+        if (hasRelevantEvents) {
+            // Pequeño retraso (300ms) para que la animación sea suave:
+            // Primero aparece la info del edificio, luego ¡Pum! salta el evento.
+            setTimeout(() => setShowEventsModal(true), 300);
+        } else {
+            // Si no hay eventos, nos aseguramos de que el modal esté cerrado
+            setShowEventsModal(false);
+        }
+    }
   };
 
   const handleShowEvents = (location) => {
@@ -159,25 +171,19 @@ function AppContent() {
     setShowEventsModal(true);
   };
 
-  // 🔥 NUEVO HANDLER: REFRESCAR DATOS CUANDO SE CREA/EDITA/BORRA UN EVENTO
-  const refreshEvents = () => {
-    queryClient.invalidateQueries(['events']);
-  };
-
   // --- RENDERIZADO ---
   if (!userRole) return <Suspense fallback={<ScreenLoader />}><LoginScreen onLogin={() => window.location.reload()} /></Suspense>;
   
-  // 🔥 AQUÍ ESTABA EL PROBLEMA: Pasamos los handlers al Dashboard
   if (userRole === 'admin' && viewMode === 'admin') return (
     <Suspense fallback={<ScreenLoader />}>
         <AdminDashboard 
             onLogout={handleLogout} 
             onViewMap={() => setViewMode('map')} 
             events={dbEvents}
-            // Agregamos estas props que faltaban:
-            onAddEvent={refreshEvents}
-            onUpdateEvent={refreshEvents}
-            onDeleteEvent={refreshEvents}
+            // Ya no necesitamos refresh manual, el SocketContext se encarga
+            onAddEvent={() => {}} 
+            onUpdateEvent={() => {}} 
+            onDeleteEvent={() => {}} 
         />
     </Suspense>
   );
@@ -185,14 +191,14 @@ function AppContent() {
   return (
     <div id="canvas-container" className="relative h-screen w-screen bg-gray-900 overflow-hidden font-sans flex flex-col">
       
-      {/* MIRA (CROSSHAIR) */}
+      {/* 1. MIRA (CROSSHAIR) - Restaurado */}
       {isFpsMode && (
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 pointer-events-none">
            <div className="w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_4px_rgba(0,0,0,0.5)]"></div>
         </div>
       )}
 
-      {/* BOTÓN CAMBIO VISTA */}
+      {/* 2. BOTÓN CAMBIO VISTA - Restaurado */}
       <div className="absolute bottom-6 right-6 z-50">
         <button 
           onClick={() => {
@@ -210,7 +216,7 @@ function AppContent() {
         </button>
       </div>
 
-      {/* INSTRUCCIONES WASD */}
+      {/* 3. INSTRUCCIONES WASD - Restaurado */}
       {isFpsMode && (
          <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-40 text-white bg-black/60 px-6 py-2 rounded-full backdrop-blur-md pointer-events-none border border-white/10 flex items-center gap-4 animate-in fade-in slide-in-from-bottom-4">
             <span className="flex items-center gap-2 text-xs font-mono"><span className="text-yellow-400">WASD</span> Moverse</span>
@@ -219,7 +225,7 @@ function AppContent() {
          </div>
       )}
 
-      {/* ESCENA 3D */}
+      {/* 4. ESCENA 3D */}
       <div className="absolute inset-0 z-0">
         <KeyboardControls map={keyboardMap}>
           <Canvas camera={{ position: [60, 60, 60], fov: 45 }} shadows dpr={[1, 1.5]}>
@@ -250,12 +256,7 @@ function AppContent() {
             </Suspense>
             
             {isFpsMode ? (
-               <FirstPersonController 
-                 active={isFpsMode} 
-                 speed={40} 
-                 // OPCIONAL: Si quisieras que ESC cierre el modo FPS, descomenta esto:
-                 // onClose={() => setIsFpsMode(false)}
-               />
+               <FirstPersonController active={isFpsMode} speed={40} />
             ) : (
                <OrbitControls makeDefault minPolarAngle={0} maxPolarAngle={Math.PI / 2.1} minDistance={50} maxDistance={150} enableDamping={true} dampingFactor={0.05} />
             )}
@@ -263,10 +264,11 @@ function AppContent() {
         </KeyboardControls>
       </div>
 
+      {/* 5. HEADER COMPLETO - Restaurado con Guía y Saludo */}
       <Header className="absolute top-0 left-0 w-full bg-gradient-to-b from-black/80 to-transparent border-none text-white z-50">
         <div className="flex items-center gap-3">
           
-          {/* ✅ TOOLKIT (GUÍA) */}
+          {/* ✅ TOOLKIT (GUÍA) - El bloque que faltaba */}
           {userRole !== 'admin' && (
             <div className="relative group">
               <button className="flex items-center gap-2 text-white/80 text-xs font-medium cursor-help hover:text-white transition-colors bg-white/10 px-3 py-1.5 rounded-full hover:bg-white/20 border border-white/10">
@@ -295,24 +297,48 @@ function AppContent() {
           )}
 
           <div className="flex items-center gap-2">
+              {/* ✅ SALUDO AL USUARIO - Restaurado */}
               {userProfile?.name && <span className="hidden md:block text-xs font-medium text-white/80 bg-black/30 px-3 py-1.5 rounded-full border border-white/5">Hola, {userProfile.name.split(' ')[0]}</span>}
               <button onClick={handleLogout} className="p-2 bg-white/10 text-red-400 rounded-lg hover:bg-red-900/50 hover:text-red-300 transition-colors border border-white/5"><LogOut className="w-5 h-5" /></button>
           </div>
         </div>
       </Header>
 
+      {/* 6. PANELES FLOTANTES Y POPUPS - Restaurada la lógica de visualización */}
       <div className="absolute inset-0 z-10 pointer-events-none">
         <div className="pointer-events-auto">
+          {/* Panel de Búsqueda (Se oculta en modo FPS o cuando hay selección) */}
           <div className={`absolute top-0 left-0 w-full transition-all duration-500 ease-in-out transform ${(!isFpsMode && !selectedLoc) ? 'translate-x-0 opacity-100' : '-translate-x-[120%] opacity-0 pointer-events-none'}`}>
              <div className="mt-4 ml-4 w-96 max-w-[80vw]"><SearchPanel locations={locations} onLocationSelect={handleLocationSelect} /></div>
           </div>
+          
+          {/* Tarjeta de Información */}
           {selectedLoc && <BuildingInfoCard location={selectedLoc} onClose={() => setSelectedLoc(null)} onShowEvents={handleShowEvents} />}
-          <EventsPopup isOpen={showEventsModal} onClose={() => setShowEventsModal(false)} locationName={selectedLoc?.name} events={dbEvents} />
+          
+          {/* ✅ POPUP DE EVENTOS - Restaurado con la corrección de ID */}
+          <EventsPopup 
+              isOpen={showEventsModal} 
+              onClose={() => setShowEventsModal(false)} 
+              locationName={selectedLoc?.name}
+              locationId={selectedLoc?.id}  // 🔥 ESTA ES LA CLAVE PARA QUE FUNCIONE EL FILTRO
+              events={dbEvents} 
+          />
         </div>
+        
+        {/* Instrucciones de Navegación (Solo si no estás en modo FPS y sin selección) */}
         {!isFpsMode && !selectedLoc && <div className="pointer-events-auto"><Instructions /></div>}
       </div>
     </div>
   );
 }
 
-export default function App() { return <QueryClientProvider client={queryClient}><AppContent /></QueryClientProvider>; }
+// 🔥 ENVOLTURA FINAL (Providers)
+export default function App() { 
+  return (
+    <QueryClientProvider client={queryClient}>
+      <SocketProvider>
+        <AppContent />
+      </SocketProvider>
+    </QueryClientProvider>
+  ); 
+}

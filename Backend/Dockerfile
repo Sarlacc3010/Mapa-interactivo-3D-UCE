@@ -1,22 +1,20 @@
-# Backend/Dockerfile
-
-# Usamos una versión ligera de Node
 FROM node:18-alpine
 
-# Creamos carpeta de trabajo
 WORKDIR /app
 
-# Copiamos primero los archivos de dependencias (para aprovechar caché)
+# Copiamos dependencias
 COPY package*.json ./
 
-# Instalamos dependencias
-RUN npm install
+# Instalamos solo dependencias de producción (más ligero)
+RUN npm ci --only=production
 
-# Copiamos el resto del código
-COPY . .
+# --- SEGURIDAD: CAMBIO DE USUARIO ---
+# Copiamos el código asignando permisos al usuario 'node'
+COPY --chown=node:node . .
 
-# Exponemos el puerto del backend
+# Cambiamos del usuario 'root' al usuario 'node'
+USER node
+
 EXPOSE 5000
 
-# Comando para iniciar (asegúrate de que en package.json tengas "start": "node index.js")
 CMD ["node", "index.js"]

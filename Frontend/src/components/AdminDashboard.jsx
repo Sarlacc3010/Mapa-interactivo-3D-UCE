@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useLocations } from "../hooks/useLocations";
-import { Sidebar } from "./Dashboard/Sidebar";
+import { Sidebar } from "./dashboard/Sidebar";
 import { AnalyticsTab } from "./dashboard/AnalyticsTab";
 import { EventsTab } from "./dashboard/EventsTab";
 

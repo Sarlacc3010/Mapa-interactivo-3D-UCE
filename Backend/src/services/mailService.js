@@ -10,7 +10,7 @@ const transporter = nodemailer.createTransport({
 });
 
 // 1. ACEPTAMOS EL NUEVO PARÁMETRO 'eventDescription'
-const sendEventNotification = async (emails, eventTitle, eventDate, eventDescription) => {
+const sendEventNotification = async (emails, eventTitle, eventDate, eventDescription, eventLocation) => {
   if (!emails || emails.length === 0) return;
 
   const mailOptions = {
@@ -31,7 +31,7 @@ const sendEventNotification = async (emails, eventTitle, eventDate, eventDescrip
             <h3 style="margin-top: 0; color: #333;">${eventTitle}</h3>
             
             <p><strong>📅 Fecha:</strong> ${eventDate}</p>
-            <p><strong>📍 Lugar:</strong> Campus Universitario</p>
+            <p><strong>📍 Lugar:</strong> ${eventLocation}</p>
             
             <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
             <p style="color: #555; font-style: italic;">"${eventDescription}"</p>
