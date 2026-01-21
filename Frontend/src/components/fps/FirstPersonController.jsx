@@ -14,25 +14,28 @@ export function FirstPersonController({ active, speed = 30 }) {
   const PLAYER_HEIGHT = 1.8; 
   const COLLISION_DISTANCE = 3.0; 
 
+  // 🔥 CORRECCIÓN AQUÍ:
+  // Hemos borrado "controlsRef.current.lock()".
+  // Ya NO intentamos bloquear el mouse automáticamente al entrar.
+  // Ahora el usuario debe hacer clic en la pantalla para tomar el control.
   useEffect(() => {
-    // Al activar el modo, intentamos bloquear el mouse
     if (active && controlsRef.current) {
         controlsRef.current.minPolarAngle = Math.PI / 2 - 0.6; 
         controlsRef.current.maxPolarAngle = Math.PI / 2 + 0.6; 
-        controlsRef.current.lock();
+        // ❌ controlsRef.current.lock();  <--- ¡ESTA LÍNEA SE FUE!
     }
   }, [active]);
 
   useFrame((state, delta) => {
     if (!active) return;
 
-    // 🔥 SI EL MOUSE NO ESTÁ BLOQUEADO (El usuario pulsó ESC), NO NOS MOVEMOS.
-    // Esto actúa como una "pausa" natural.
+    // Si el mouse no está capturado (usuario presionó ESC o aún no ha hecho clic),
+    // no movemos nada.
     if (!controlsRef.current?.isLocked) return;
 
     const { forward, backward, left, right } = get();
     
-    // Sprint con Shift (Opcional, si mapeas Shift en App.jsx)
+    // Velocidad constante para evitar aceleraciones extrañas
     const currentSpeed = speed; 
 
     const inputZ = Number(forward) - Number(backward); 
@@ -41,6 +44,7 @@ export function FirstPersonController({ active, speed = 30 }) {
     const targetVelocity = new Vector3();
     targetVelocity.set(inputX, 0, inputZ).normalize().multiplyScalar(currentSpeed);
 
+    // Suavizado de movimiento (Inercia)
     velocity.current.lerp(targetVelocity, 15.0 * delta);
 
     // --- COLISIONES ---
@@ -61,7 +65,7 @@ export function FirstPersonController({ active, speed = 30 }) {
             !obj.object.name.includes('Plane') &&
             !obj.object.name.includes('Road') && 
             !obj.object.name.includes('Grass') &&
-            obj.point.y > (camera.position.y - 1.0) // Ignorar veredas bajas
+            obj.point.y > (camera.position.y - 1.0)
         );
 
         if (hit) velocity.current.set(0, 0, 0);
@@ -78,7 +82,8 @@ export function FirstPersonController({ active, speed = 30 }) {
   return (
     <PointerLockControls 
       ref={controlsRef} 
-      selector="#canvas-container" // Al hacer click aquí, recupera el control
+      makeDefault={active} 
+      selector="#canvas-container" // Al hacer clic en el canvas, SE ACTIVA AUTOMÁTICAMENTE
     />
   );
 }

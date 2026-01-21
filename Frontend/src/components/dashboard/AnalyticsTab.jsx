@@ -1,52 +1,67 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useRef } from "react";
 import { TrendingUp, Users, Calendar, MapPin } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, AreaChart, Area, CartesianGrid
 } from 'recharts';
 
-// Importamos el Hook Inteligente
+// 🔥 GSAP
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+
+// Hook Inteligente
 import { useAnalytics } from "../../hooks/useAnalytics";
 
 const COLORS = ['#1e3a8a', '#D9232D', '#10B981', '#F59E0B', '#8b5cf6', '#ec4899'];
-const TIMEZONE_OFFSET = -5; // Ajuste para Ecuador (UTC-5)
+const TIMEZONE_OFFSET = -5; 
 
 export function AnalyticsTab({ locations }) {
-  // 1. USAMOS EL HOOK (Ya trae los datos y el estado de carga)
   const { summary, topLocations, peakHours, loading } = useAnalytics();
+  
+  // 🔥 REFERENCIA PARA ANIMAR TODO EL CONTENEDOR
+  const containerRef = useRef();
 
-  // 2. PROCESAR HORAS PICO (Ajuste de Zona Horaria)
+  // 🔥 ANIMACIÓN DE ENTRADA CON GSAP
+  useGSAP(() => {
+    // Seleccionamos todos los elementos con la clase 'animate-item' y los animamos en cascada
+    gsap.fromTo(".animate-item", 
+      { y: 50, opacity: 0 }, // Estado inicial (abajo e invisibles)
+      { 
+        y: 0, 
+        opacity: 1, 
+        duration: 0.8, 
+        stagger: 0.1, // Retraso de 0.1s entre cada elemento
+        ease: "back.out(1.2)" // Efecto de rebote ligero al llegar
+      }
+    );
+  }, { scope: containerRef, dependencies: [loading] }); // Se ejecuta cuando termina de cargar
+
+  // PROCESAR HORAS PICO
   const trafficData = useMemo(() => {
     if (!peakHours.length) return [];
-
-    // Buckets vacíos para las 24 horas
     const buckets = Array.from({ length: 24 }, (_, i) => ({
       label: `${i}:00`,
       visitas: 0
     }));
-
     peakHours.forEach(item => {
       let serverHour = parseInt(item.hour || item.name);
       if (!isNaN(serverHour)) {
-        // Fórmula de ajuste: (HoraServidor + Offset + 24) % 24
         const localHour = (serverHour + TIMEZONE_OFFSET + 24) % 24;
         buckets[localHour].visitas += parseInt(item.visitas || item.count || 0);
       }
     });
-
     return buckets;
   }, [peakHours]);
 
-  // 3. PROCESAR TOP LUGARES (Formato de nombres)
+  // PROCESAR TOP LUGARES
   const formattedTopLocations = useMemo(() => {
     return topLocations.map(item => ({
       ...item,
-      // Acortamos nombres largos como "Facultad de ..."
       name: item.name.replace('Facultad de ', '').replace('Facultad ', '').substring(0, 15)
     }));
   }, [topLocations]);
 
-  // 4. PROCESAR CATEGORÍAS (Basado en la lista de lugares)
+  // PROCESAR CATEGORÍAS
   const statsCategorias = useMemo(() => {
     if (!locations.length) return [];
     const counts = {};
@@ -70,17 +85,24 @@ export function AnalyticsTab({ locations }) {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    // Asignamos la ref al contenedor principal
+    <div ref={containerRef} className="space-y-6 pb-8">
       
-      {/* TARJETAS KPI (Datos directos del Hook) */}
+      {/* TARJETAS KPI (Agregamos clase 'animate-item') */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard title="Visitas Totales" value={summary.totalVisits} icon={TrendingUp} color="bg-green-500" />
-        <StatCard title="Usuarios Registrados" value={summary.totalUsers} icon={Users} color="bg-blue-500" />
-        <StatCard title="Eventos en Sistema" value={summary.totalEvents} icon={Calendar} color="bg-purple-500" />
+        <div className="animate-item">
+            <StatCard title="Visitas Totales" value={summary.totalVisits} icon={TrendingUp} color="bg-green-500" />
+        </div>
+        <div className="animate-item">
+            <StatCard title="Usuarios Registrados" value={summary.totalUsers} icon={Users} color="bg-blue-500" />
+        </div>
+        <div className="animate-item">
+            <StatCard title="Eventos en Sistema" value={summary.totalEvents} icon={Calendar} color="bg-purple-500" />
+        </div>
       </div>
 
-      {/* GRÁFICO DE TENDENCIA (HORAS PICO) */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6 h-80 flex flex-col">
+      {/* GRÁFICO DE TENDENCIA */}
+      <div className="animate-item bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6 h-80 flex flex-col">
         <div className="flex justify-between items-center mb-2">
             <h3 className="font-bold text-gray-800 flex items-center gap-2">
               <TrendingUp size={18} className="text-purple-600" /> Actividad Diaria
@@ -89,7 +111,6 @@ export function AnalyticsTab({ locations }) {
               Hora Local (UTC{TIMEZONE_OFFSET})
             </span>
         </div>
-        
         <div className="flex-1 w-full h-full min-h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={trafficData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -106,16 +127,7 @@ export function AnalyticsTab({ locations }) {
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }} 
                     formatter={(value) => [`${value} visitas`, "Tráfico"]}
                 />
-                <Area 
-                  type="monotone" 
-                  dataKey="visitas" 
-                  stroke="#8b5cf6" 
-                  strokeWidth={3} 
-                  fillOpacity={1} 
-                  fill="url(#colorVisitas)" 
-                  animationDuration={1000} 
-                  isAnimationActive={true}
-                />
+                <Area type="monotone" dataKey="visitas" stroke="#8b5cf6" strokeWidth={3} fillOpacity={1} fill="url(#colorVisitas)" animationDuration={1500} />
               </AreaChart>
             </ResponsiveContainer>
         </div>
@@ -125,7 +137,7 @@ export function AnalyticsTab({ locations }) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
         {/* Top Lugares */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-96 flex flex-col">
+        <div className="animate-item bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-96 flex flex-col">
           <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2 shrink-0">
             <MapPin size={18} className="text-blue-600" /> Lugares Más Visitados
           </h3>
@@ -140,31 +152,21 @@ export function AnalyticsTab({ locations }) {
                 </BarChart>
                 </ResponsiveContainer>
             ) : (
-                <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-                  Sin datos de visitas aún
-                </div>
+                <div className="flex items-center justify-center h-full text-gray-400 text-sm">Sin datos aún</div>
             )}
           </div>
         </div>
         
         {/* Distribución */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-96 flex flex-col">
+        <div className="animate-item bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-96 flex flex-col">
            <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2 shrink-0">
              <TrendingUp size={18} className="text-green-600" /> Distribución de Infraestructura
            </h3>
            <div className="flex-1 w-full min-h-0">
              <ResponsiveContainer width="100%" height="100%">
                <PieChart>
-                 <Pie 
-                    data={statsCategorias} 
-                    cx="50%" cy="50%" 
-                    innerRadius={60} outerRadius={80} 
-                    paddingAngle={5} 
-                    dataKey="value" nameKey="name"
-                  >
-                   {statsCategorias.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                   ))}
+                 <Pie data={statsCategorias} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" nameKey="name">
+                   {statsCategorias.map((entry, index) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
                  </Pie>
                  <Tooltip />
                  <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px' }} />
@@ -177,13 +179,12 @@ export function AnalyticsTab({ locations }) {
   );
 }
 
-// Componente simple para las tarjetas (sin cambios)
 function StatCard({ title, value, icon: Icon, color }) {
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between transition-transform hover:scale-[1.02]">
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between transition-transform hover:scale-[1.02] cursor-default">
       <div>
         <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">{title}</p>
-        <h3 className="text-3xl font-bold text-gray-800 animate-in slide-in-from-bottom-2">{value}</h3>
+        <h3 className="text-3xl font-bold text-gray-800">{value}</h3>
       </div>
       <div className={`w-12 h-12 rounded-full ${color} bg-opacity-10 flex items-center justify-center text-white`}>
         <div className={`w-full h-full rounded-full ${color} flex items-center justify-center shadow-md`}>

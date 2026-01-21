@@ -68,7 +68,10 @@ function AppContent() {
   const [selectedLoc, setSelectedLoc] = useState(null);
   const [showEventsModal, setShowEventsModal] = useState(false);
   const [welcomeAnimationDone, setWelcomeAnimationDone] = useState(false);
+  
+  // 🔥 ESTADOS DE MODOS Y TRANSICIÓN
   const [isFpsMode, setIsFpsMode] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   // Mapeo de Teclas
   const keyboardMap = [
@@ -138,29 +141,19 @@ function AppContent() {
         registerVisit(loc.id);
 
         // 3. 🔥 LÓGICA DE AUTO-APERTURA DE EVENTOS
-        // Verificamos si existen eventos FUTUROS o DE HOY en este lugar
         const hasRelevantEvents = dbEvents.some(event => {
-            // A. Coincide el ID del lugar
             const isSameLocation = String(event.location_id) === String(loc.id);
-            
-            // B. Es una fecha válida (Hoy o Futuro)
-            // Esto evita que salten popups por eventos del año pasado
-            const eventDate = new Date(event.date.split('T')[0] + 'T00:00:00'); // Asegurar formato ISO
+            const eventDate = new Date(event.date.split('T')[0] + 'T00:00:00'); 
             const today = new Date();
-            today.setHours(0, 0, 0, 0); // Resetear hora a las 00:00 para comparar solo fecha
+            today.setHours(0, 0, 0, 0); 
 
             return isSameLocation && eventDate >= today;
         });
 
-        console.log(`📍 Lugar: ${loc.name}, ¿Eventos?: ${hasRelevantEvents}`);
-
-        // Si hay eventos, abrimos el popup automáticamente
+        // Si hay eventos, abrimos el popup automáticamente tras un delay
         if (hasRelevantEvents) {
-            // Pequeño retraso (300ms) para que la animación sea suave:
-            // Primero aparece la info del edificio, luego ¡Pum! salta el evento.
             setTimeout(() => setShowEventsModal(true), 300);
         } else {
-            // Si no hay eventos, nos aseguramos de que el modal esté cerrado
             setShowEventsModal(false);
         }
     }
@@ -191,33 +184,57 @@ function AppContent() {
   return (
     <div id="canvas-container" className="relative h-screen w-screen bg-gray-900 overflow-hidden font-sans flex flex-col">
       
-      {/* 1. MIRA (CROSSHAIR) - Restaurado */}
-      {isFpsMode && (
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 pointer-events-none">
-           <div className="w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_4px_rgba(0,0,0,0.5)]"></div>
-        </div>
+      {/* 1. ELEMENTOS UI PARA MODO CAMINAR (Solo si NO hay transición) */}
+      {isFpsMode && !isTransitioning && (
+        <>
+            {/* MIRA (CROSSHAIR) */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 pointer-events-none">
+               <div className="w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_4px_rgba(0,0,0,0.5)]"></div>
+            </div>
+
+            {/* 🔥 TEXTO DE AYUDA: CLIC PARA CONTROLAR (Visualmente importante) */}
+            <div className="absolute top-[55%] left-1/2 -translate-x-1/2 text-white/60 text-[10px] uppercase tracking-[0.2em] font-bold pointer-events-none animate-pulse">
+                Clic en pantalla para controlar
+            </div>
+        </>
       )}
 
-      {/* 2. BOTÓN CAMBIO VISTA - Restaurado */}
+      {/* 2. BOTÓN CAMBIO VISTA - CON LÓGICA DE TRANSICIÓN Y DESBLOQUEO */}
       <div className="absolute bottom-6 right-6 z-50">
         <button 
           onClick={() => {
-            setIsFpsMode(!isFpsMode);
+            // 🔥 CORRECCIÓN CLAVE: Si estamos en modo Caminar, soltamos el mouse YA.
+            if (isFpsMode) {
+                document.exitPointerLock();
+            }
+
+            // A. Bloqueamos controles (Empieza la animación GSAP)
+            setIsTransitioning(true);
+            
+            // B. Cambiamos el modo
+            const nextMode = !isFpsMode;
+            setIsFpsMode(nextMode);
             setSelectedLoc(null);
+
+            // C. Esperamos a que termine la animación GSAP (3.0s)
+            setTimeout(() => {
+                setIsTransitioning(false);
+            }, 3000); 
           }}
+          disabled={isTransitioning} // Evitar doble click durante animación
           className={`flex items-center gap-3 px-5 py-3 rounded-full font-bold shadow-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 border-2 ${
             isFpsMode 
               ? "bg-white text-gray-800 border-gray-200 hover:bg-gray-50" 
               : "bg-[#1e3a8a] text-white border-blue-700 hover:bg-blue-900"
-          }`}
+          } ${isTransitioning ? "opacity-50 cursor-wait scale-95" : ""}`}
         >
           {isFpsMode ? <Plane size={20} className="text-[#D9232D]" /> : <Footprints size={20} />}
           <span>{isFpsMode ? "Vista Satélite" : "Caminar"}</span>
         </button>
       </div>
 
-      {/* 3. INSTRUCCIONES WASD - Restaurado */}
-      {isFpsMode && (
+      {/* 3. INSTRUCCIONES WASD - Solo en FPS real */}
+      {isFpsMode && !isTransitioning && (
          <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-40 text-white bg-black/60 px-6 py-2 rounded-full backdrop-blur-md pointer-events-none border border-white/10 flex items-center gap-4 animate-in fade-in slide-in-from-bottom-4">
             <span className="flex items-center gap-2 text-xs font-mono"><span className="text-yellow-400">WASD</span> Moverse</span>
             <span className="w-px h-3 bg-white/20"></span>
@@ -232,7 +249,7 @@ function AppContent() {
             <Suspense fallback={<Loader3D />}>
               <Campus3D
                 userFacultyId={userProfile?.faculty_id} 
-                isFpsMode={isFpsMode}
+                isFpsMode={isFpsMode} // Pasamos el modo para que Campus3D sepa animar
                 onEdificioClick={(name) => {
                   const loc = locations.find(l => l.object3d_id === name);
                   if (loc) handleLocationSelect(loc);
@@ -246,7 +263,6 @@ function AppContent() {
                     setShowEventsModal(true); 
                 }}
                 onVisitRegistered={(loc) => {
-                    console.log("Visita registrada por cercanía:", loc.name);
                     registerVisit(loc.id); 
                 }}
               />
@@ -255,20 +271,25 @@ function AppContent() {
               <directionalLight position={[50, 80, 30]} intensity={1.5} castShadow shadow-mapSize={[1024, 1024]} />
             </Suspense>
             
-            {isFpsMode ? (
-               <FirstPersonController active={isFpsMode} speed={40} />
-            ) : (
-               <OrbitControls makeDefault minPolarAngle={0} maxPolarAngle={Math.PI / 2.1} minDistance={50} maxDistance={150} enableDamping={true} dampingFactor={0.05} />
+            {/* 🔥 CONTROLES CONDICIONALES: No renderizamos ninguno durante la transición */}
+            {!isTransitioning && (
+                <>
+                    {isFpsMode ? (
+                       <FirstPersonController active={isFpsMode} speed={40} />
+                    ) : (
+                       <OrbitControls makeDefault minPolarAngle={0} maxPolarAngle={Math.PI / 2.1} minDistance={50} maxDistance={150} enableDamping={true} dampingFactor={0.05} />
+                    )}
+                </>
             )}
           </Canvas>
         </KeyboardControls>
       </div>
 
-      {/* 5. HEADER COMPLETO - Restaurado con Guía y Saludo */}
+      {/* 5. HEADER COMPLETO */}
       <Header className="absolute top-0 left-0 w-full bg-gradient-to-b from-black/80 to-transparent border-none text-white z-50">
         <div className="flex items-center gap-3">
           
-          {/* ✅ TOOLKIT (GUÍA) - El bloque que faltaba */}
+          {/* TOOLKIT (GUÍA) */}
           {userRole !== 'admin' && (
             <div className="relative group">
               <button className="flex items-center gap-2 text-white/80 text-xs font-medium cursor-help hover:text-white transition-colors bg-white/10 px-3 py-1.5 rounded-full hover:bg-white/20 border border-white/10">
@@ -297,14 +318,13 @@ function AppContent() {
           )}
 
           <div className="flex items-center gap-2">
-              {/* ✅ SALUDO AL USUARIO - Restaurado */}
               {userProfile?.name && <span className="hidden md:block text-xs font-medium text-white/80 bg-black/30 px-3 py-1.5 rounded-full border border-white/5">Hola, {userProfile.name.split(' ')[0]}</span>}
               <button onClick={handleLogout} className="p-2 bg-white/10 text-red-400 rounded-lg hover:bg-red-900/50 hover:text-red-300 transition-colors border border-white/5"><LogOut className="w-5 h-5" /></button>
           </div>
         </div>
       </Header>
 
-      {/* 6. PANELES FLOTANTES Y POPUPS - Restaurada la lógica de visualización */}
+      {/* 6. PANELES FLOTANTES Y POPUPS */}
       <div className="absolute inset-0 z-10 pointer-events-none">
         <div className="pointer-events-auto">
           {/* Panel de Búsqueda (Se oculta en modo FPS o cuando hay selección) */}
@@ -315,17 +335,17 @@ function AppContent() {
           {/* Tarjeta de Información */}
           {selectedLoc && <BuildingInfoCard location={selectedLoc} onClose={() => setSelectedLoc(null)} onShowEvents={handleShowEvents} />}
           
-          {/* ✅ POPUP DE EVENTOS - Restaurado con la corrección de ID */}
+          {/* POPUP DE EVENTOS */}
           <EventsPopup 
               isOpen={showEventsModal} 
               onClose={() => setShowEventsModal(false)} 
               locationName={selectedLoc?.name}
-              locationId={selectedLoc?.id}  // 🔥 ESTA ES LA CLAVE PARA QUE FUNCIONE EL FILTRO
+              locationId={selectedLoc?.id}
               events={dbEvents} 
           />
         </div>
         
-        {/* Instrucciones de Navegación (Solo si no estás en modo FPS y sin selección) */}
+        {/* Instrucciones de Navegación */}
         {!isFpsMode && !selectedLoc && <div className="pointer-events-auto"><Instructions /></div>}
       </div>
     </div>

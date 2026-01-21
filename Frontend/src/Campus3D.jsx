@@ -3,6 +3,10 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGLTF, Html } from '@react-three/drei';
 
+// 🔥 IMPORTAMOS GSAP
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+
 export default function Campus3D({ 
   onEdificioClick, 
   targetLocation, 
@@ -56,36 +60,30 @@ export default function Campus3D({
         }
     }
 
-    // Calcular Etiquetas, Posiciones y TAMAÑOS
+    // Calcular Etiquetas
     const calculatedLabels = [];
     const processedObjects = new Set();
 
     locations.forEach((loc) => {
         if (!loc.object3d_id) return;
-        if (loc.object3d_id === userObject3DId) return; // Si tiene pin rojo, no ponemos etiqueta azul
+        if (loc.object3d_id === userObject3DId) return; 
         if (processedObjects.has(loc.object3d_id)) return;
 
         const obj3d = scene.getObjectByName(loc.object3d_id);
         if (obj3d) {
             const box = new THREE.Box3().setFromObject(obj3d);
-            
-            // Calculamos Centro
             const center = new THREE.Vector3();
             box.getCenter(center);
-
-            // 🔥 NUEVO: Calculamos el TAMAÑO (Ancho y Profundidad) del edificio
             const size = new THREE.Vector3();
             box.getSize(size);
             
             calculatedLabels.push({
                 id: loc.id, 
                 name: loc.name,
-                // Posición visual de la etiqueta
                 position: [center.x, box.max.y + 25, center.z], 
-                // Datos para lógica y dibujo
                 realCenter: center,
-                width: size.x, // Guardamos el ancho
-                depth: size.z  // Guardamos el largo (profundidad)
+                width: size.x,
+                depth: size.z
             });
             processedObjects.add(loc.object3d_id);
         }
@@ -94,48 +92,109 @@ export default function Campus3D({
 
   }, [scene, locations, userFacultyId]);
 
+  // 🔥 ANIMACIÓN 1: VUELO A EDIFICIO (Click en Mapa)
+  useGSAP(() => {
+    if (!isFpsMode && targetLocation && targetLocation.object3d_id) {
+      const targetObj = scene.getObjectByName(targetLocation.object3d_id);
+      
+      if (targetObj) {
+        const box = new THREE.Box3().setFromObject(targetObj);
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+
+        const endPos = new THREE.Vector3(center.x + 60, center.y + 60, center.z + 60);
+
+        gsap.to(camera.position, {
+          x: endPos.x,
+          y: endPos.y,
+          z: endPos.z,
+          duration: 1.5,
+          ease: "power3.inOut"
+        });
+
+        if (controls) {
+          gsap.to(controls.target, {
+            x: center.x,
+            y: center.y,
+            z: center.z,
+            duration: 1.5,
+            ease: "power3.inOut",
+            onUpdate: () => controls.update()
+          });
+        }
+      }
+    }
+  }, [targetLocation, isFpsMode]);
+
+  // 🔥 ANIMACIÓN 2: ATERRIZAJE Y DESPEGUE (Cambio de Modo)
+  useGSAP(() => {
+    if (isFpsMode) {
+      // 🛬 ATERRIZAJE: De Satélite a Primera Persona
+      const direction = new THREE.Vector3();
+      camera.getWorldDirection(direction);
+      
+      if (direction.y > -0.1) direction.y = -0.1;
+
+      // Calculamos dónde aterrizar (intersección con Y=2)
+      const t = (2 - camera.position.y) / direction.y;
+      
+      let targetX = camera.position.x + direction.x * t;
+      let targetZ = camera.position.z + direction.z * t;
+
+      // Seguridad: Si el punto está lejísimos, aterrizamos a 30m adelante
+      const dist = Math.sqrt(Math.pow(targetX - camera.position.x, 2) + Math.pow(targetZ - camera.position.z, 2));
+      if (dist > 100 || dist < 0) {
+          targetX = camera.position.x + direction.x * 30;
+          targetZ = camera.position.z + direction.z * 30;
+      }
+
+      // 1. Mover el cuerpo (Cámara)
+      gsap.to(camera.position, {
+        x: targetX,
+        y: 2, 
+        z: targetZ,
+        duration: 3.0,          // <--- 3 SEGUNDOS (Lento y suave)
+        ease: "power2.inOut"
+      });
+
+      // 2. Mover la mirada (Enderezar al frente)
+      if (controls) {
+          gsap.to(controls.target, {
+              x: targetX + direction.x, // Mirar 1 metro adelante
+              y: 2,                     // Mirar a la altura de los ojos (horizonte)
+              z: targetZ + direction.z,
+              duration: 3.0,            // Sincronizado
+              ease: "power2.inOut"
+          });
+      }
+
+    } else {
+      // 🛫 DESPEGUE: De Primera Persona a Satélite
+      gsap.to(camera.position, {
+        y: 60, 
+        duration: 2.5,          // Subida un poco más dinámica
+        ease: "power2.inOut"
+      });
+    }
+  }, [isFpsMode]);
 
   // --- 2. LÓGICA FRAME A FRAME ---
   useFrame((state) => {
     const userPos = camera.position;
 
-    // A. MOVIMIENTO AUTOMÁTICO (SOLO EN MODO SATÉLITE)
-    if (!isFpsMode && targetLocation && targetLocation.object3d_id) {
-        const targetObj = scene.getObjectByName(targetLocation.object3d_id);
-        if (targetObj) {
-            const box = new THREE.Box3().setFromObject(targetObj);
-            const center = new THREE.Vector3();
-            box.getCenter(center);
-
-            const desiredPos = new THREE.Vector3(center.x + 80, center.y + 80, center.z + 80);
-            
-            // Solo interpolamos si NO estamos en FPS
-            state.camera.position.lerp(desiredPos, 0.05);
-            
-            if (controls) {
-                controls.target.lerp(center, 0.05);
-                controls.update();
-            }
-        }
-    }
-
     // B. PROXIMIDAD (SOLO EN MODO FPS)
     if (isFpsMode) {
         dynamicLabels.forEach((lbl) => {
-            // Usamos el centro real del objeto 3D
             const targetX = lbl.realCenter.x;
             const targetZ = lbl.realCenter.z;
-            
-            // Distancia 2D
             const dist = Math.sqrt(Math.pow(userPos.x - targetX, 2) + Math.pow(userPos.z - targetZ, 2));
             
             const originalLoc = locations.find(l => l.id === lbl.id);
             if (!originalLoc) return;
 
-            // RANGO 1: EVENTOS (70 metros)
+            // RANGO 1: EVENTOS (70m)
             if (dist < 70) {
                 const hasEvent = events.some(e => String(e.location_id) === String(originalLoc.id));
-                
                 if (hasEvent && !notifiedEventsSession.current.has(originalLoc.id)) {
                     console.log(`🔔 ¡Evento cerca en ${lbl.name}!`);
                     if (onEventFound) onEventFound(originalLoc);
@@ -144,7 +203,7 @@ export default function Campus3D({
                 }
             }
 
-            // RANGO 2: VISITAS (30 metros)
+            // RANGO 2: VISITAS (30m)
             if (dist < 30) {
                 if (!visitedSession.current.has(originalLoc.id)) {
                     console.log(`✅ Visita registrada en ${lbl.name}`);
@@ -160,8 +219,6 @@ export default function Campus3D({
   // --- 3. CLICKS ---
   const handleModelClick = (e) => {
     e.stopPropagation(); 
-    
-    // Si estamos caminando, el click NO debe teletransportar ni seleccionar
     if (isFpsMode) return;
 
     let currentObj = e.object;
@@ -191,11 +248,9 @@ export default function Campus3D({
         onPointerOut={() => document.body.style.cursor = 'default'}
       />
 
-      {/* ETIQUETAS DINÁMICAS + RECTÁNGULOS DE RANGO */}
+      {/* ETIQUETAS DINÁMICAS */}
       {dynamicLabels.map((lbl) => (
         <React.Fragment key={lbl.id}>
-            
-            {/* ETIQUETA AZUL (Tu diseño original) */}
             <Html 
                 position={lbl.position} 
                 center 
@@ -213,37 +268,26 @@ export default function Campus3D({
                 </div>
             </Html>
 
-            {/* 🔥 RECTÁNGULOS DE RANGO (Solo en FPS) */}
             {isFpsMode && (
                 <group position={[lbl.realCenter.x, 0.5, lbl.realCenter.z]}>
-                    
-                    {/* 1. Borde "Wireframe" del edificio (Blanco sutil) */}
                     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.1, 0]}>
                         <planeGeometry args={[lbl.width + 2, lbl.depth + 2]} />
                         <meshBasicMaterial color="white" wireframe opacity={0.3} transparent />
                     </mesh>
-
-                    {/* 2. Zona de Visita (Verde - Rectangular) 
-                           Tamaño: Edificio + 25m de margen aprox */}
                     <mesh rotation={[-Math.PI / 2, 0, 0]}>
                         <planeGeometry args={[lbl.width + 25, lbl.depth + 25]} />
                         <meshBasicMaterial color="#10b981" transparent opacity={0.25} depthWrite={false} />
                     </mesh>
-                    
-                    {/* 3. Zona de Eventos (Amarillo - Rectangular) 
-                           Tamaño: Edificio + 60m de margen aprox */}
                     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, 0]}>
                         <planeGeometry args={[lbl.width + 60, lbl.depth + 60]} />
                         <meshBasicMaterial color="#f59e0b" transparent opacity={0.15} depthWrite={false} />
                     </mesh>
-
                 </group>
             )}
-
         </React.Fragment>
       ))}
 
-      {/* PIN ROJO (Tu Facultad - Tu diseño original) */}
+      {/* PIN ROJO */}
       {pinPosition && (
         <Html position={pinPosition} center distanceFactor={150} zIndexRange={[100, 0]}>
              <div className="flex flex-col items-center animate-bounce select-none pointer-events-none">
