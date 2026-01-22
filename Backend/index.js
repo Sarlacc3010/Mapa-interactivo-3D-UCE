@@ -6,26 +6,29 @@ const cookieParser = require('cookie-parser');
 const passport = require('passport');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto'); // 🔥 Para generar tokens únicos
 
 require('dotenv').config();
 
-// --- 1. IMPORT CONFIGURATIONS AND SERVICES ---
-// We import connections instead of creating them here
+// --- 1. CONFIGURACIONES Y SERVICIOS ---
 const pool = require('./src/config/db'); 
 const redisClient = require('./src/config/redis'); 
-require('./src/config/passport'); // This loads the Google Strategy automatically
+require('./src/config/passport'); 
 
-// --- 2. IMPORT ROUTES ---
+// 🔥 Importamos el servicio de correo
+const { sendVerificationEmail } = require('./src/services/mailService');
+
+// --- 2. RUTAS ---
 const locationRoutes = require('./src/routes/locations');
 const eventsRoutes = require('./src/routes/eventsRoutes'); 
-const analyticsRoutes = require('./src/routes/analyticsRoutes'); // 🔥 NEW: Analytics Routes
+const analyticsRoutes = require('./src/routes/analyticsRoutes'); 
 const authMiddleware = require('./src/middlewares/authMiddleware');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // ==========================================
-// 3. WEBSOCKET SERVER CONFIGURATION
+// 3. CONFIGURACIÓN DEL SERVIDOR WEBSOCKET
 // ==========================================
 const server = http.createServer(app);
 
@@ -37,22 +40,20 @@ const io = new Server(server, {
   }
 });
 
-// Middleware to inject 'io' into every request
-// This allows using req.io.emit(...) in any route
 app.use((req, res, next) => {
   req.io = io;
   next();
 });
 
 io.on('connection', (socket) => {
-  console.log(`🔌 Client connected to Socket: ${socket.id}`);
+  console.log(`🔌 Cliente conectado al Socket: ${socket.id}`);
   socket.on('disconnect', () => {
-    console.log(`❌ Client disconnected: ${socket.id}`);
+    console.log(`❌ Cliente desconectado: ${socket.id}`);
   });
 });
 
 // ==========================================
-// 4. GLOBAL MIDDLEWARES
+// 4. MIDDLEWARES GLOBALES
 // ==========================================
 app.use(cors({
   origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
@@ -63,15 +64,16 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(passport.initialize());
 
+// Configuración de Cookies para JWT
 const COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
+  httpOnly: true, // No accesible por JavaScript del lado cliente (seguridad XSS)
+  secure: process.env.NODE_ENV === 'production', // Solo HTTPS en producción
   sameSite: 'lax',
-  maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  maxAge: 24 * 60 * 60 * 1000 // 24 horas
 };
 
 // ==========================================
-// 5. STATIC FILES (IMAGES)
+// 5. ARCHIVOS ESTÁTICOS (IMÁGENES)
 // ==========================================
 const uploadDir = path.join(__dirname, 'public', 'uploads');
 if (!fs.existsSync(uploadDir)) {
@@ -80,22 +82,21 @@ if (!fs.existsSync(uploadDir)) {
 app.use('/uploads', express.static(uploadDir));
 
 // ==========================================
-// 6. ROUTES (ENDPOINTS)
+// 6. RUTAS (ENDPOINTS)
 // ==========================================
 
-// A. Modular Routes
+// A. Rutas Modulares
 app.use('/api/locations', locationRoutes);
 app.use('/api/events', eventsRoutes);
-app.use('/api/analytics', analyticsRoutes); // 🔥 Connects the Dashboard charts
+app.use('/api/analytics', analyticsRoutes); 
 
-// B. Authentication Routes (LOGIN/REGISTER)
-// TODO: Move this to 'src/controllers/authController.js' in the future.
-// Kept here for now to ensure login stability.
+// B. Rutas de Autenticación (LOGIN/REGISTER/VERIFY)
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const SECRET_KEY = process.env.JWT_SECRET;
 
-// Google Callback
+// --- LOGIN CON GOOGLE ---
+// Los usuarios de Google se crean automáticamente verificados (is_verified = TRUE) en passport.js
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 app.get('/auth/google/callback',
@@ -107,83 +108,144 @@ app.get('/auth/google/callback',
       SECRET_KEY,
       { expiresIn: '24h' }
     );
+    // Enviamos la cookie segura
     res.cookie('access_token', token, COOKIE_OPTIONS);
     res.redirect(`http://localhost:5173/?loginSuccess=true&role=${user.role}`);
   }
 );
 
-// Standard Login
+// --- LOGIN NORMAL ---
 app.post('/api/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     const userResult = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
 
-    if (userResult.rows.length === 0) return res.status(400).json({ error: "User not found" });
+    if (userResult.rows.length === 0) return res.status(400).json({ error: "Usuario no encontrado" });
 
     const user = userResult.rows[0];
-    if (!user.password) return res.status(400).json({ error: "Please use Google to login" });
+
+    // 🔥 BLOQUEO DE SEGURIDAD: VERIFICACIÓN DE CORREO
+    if (!user.is_verified) {
+       return res.status(403).json({ error: "Tu cuenta no está verificada. Revisa tu correo electrónico." });
+    }
+
+    if (!user.password) return res.status(400).json({ error: "Por favor usa Google para iniciar sesión" });
 
     const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) return res.status(400).json({ error: "Incorrect password" });
+    if (!validPassword) return res.status(400).json({ error: "Contraseña incorrecta" });
 
+    // Generar Token JWT
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role, faculty_id: user.faculty_id },
       SECRET_KEY,
       { expiresIn: '24h' }
     );
+    
+    // Enviar Cookie y Respuesta
     res.cookie('access_token', token, COOKIE_OPTIONS);
     res.json({
-      message: "Login successful",
+      message: "Inicio de sesión exitoso",
       user: { email: user.email, role: user.role, faculty_id: user.faculty_id }
     });
-  } catch (err) { res.status(500).json({ error: "Server error" }); }
+  } catch (err) { res.status(500).json({ error: "Error en el servidor" }); }
 });
 
-// Register
+// --- REGISTRO DE USUARIO ---
 app.post("/api/register", async (req, res) => {
   const { email, password, name, faculty_id } = req.body;
+  
+  // Logs para depuración en servidor
+  console.log("📩 Intentando registrar:", email);
+
   try {
-    const user = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
-    if (user.rows.length > 0) return res.status(401).json({ error: "User already exists" });
+    const userCheck = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+    if (userCheck.rows.length > 0) return res.status(401).json({ error: "El usuario ya existe" });
 
     const salt = await bcrypt.genSalt(10);
     const bcryptPassword = await bcrypt.hash(password, salt);
     let role = email.endsWith('@uce.edu.ec') ? 'student' : 'visitor';
 
-    const newUser = await pool.query(
-      `INSERT INTO users (email, password, role, name, faculty_id) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [email, bcryptPassword, role, name || null, faculty_id || null]
+    // Generar Token aleatorio de verificación
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+
+    // 1. Insertar usuario en DB (is_verified = FALSE)
+    await pool.query(
+      `INSERT INTO users (email, password, role, name, faculty_id, is_verified, verification_token) 
+       VALUES ($1, $2, $3, $4, $5, FALSE, $6)`,
+      [email, bcryptPassword, role, name || null, faculty_id || null, verificationToken]
     );
 
-    const token = jwt.sign(
-      { id: newUser.rows[0].id, email: newUser.rows[0].email, role: role, faculty_id: faculty_id || null },
-      SECRET_KEY,
-      { expiresIn: '24h' }
-    );
+    // 2. Enviar Correo (OBLIGATORIO ESPERAR RESPUESTA)
+    console.log("📨 Enviando correo a:", email);
+    try {
+      // Usamos await para asegurar que si falla, salte al catch
+      await sendVerificationEmail(email, verificationToken);
+      console.log("✅ Correo enviado con éxito");
+    } catch (emailError) {
+      console.error("❌ FALLÓ EL ENVÍO DE CORREO:", emailError);
+      
+      // 🔥 IMPORTANTE: Si falla el correo, borramos al usuario para que pueda intentar de nuevo
+      await pool.query("DELETE FROM users WHERE email = $1", [email]);
+      
+      return res.status(500).json({ 
+        error: "No se pudo enviar el correo de verificación. Inténtalo de nuevo más tarde." 
+      });
+    }
 
-    res.cookie("access_token", token, COOKIE_OPTIONS);
-    return res.json({ token, user: newUser.rows[0] });
+    // 3. Responder al usuario SOLO si el correo se envió
+    return res.json({ 
+      message: "Registro exitoso. Revisa tu correo para verificar tu cuenta antes de iniciar sesión." 
+    });
+
   } catch (err) {
-    res.status(500).json({ error: "Server error", details: err.message });
+    console.error("❌ Error en registro:", err);
+    res.status(500).json({ error: "Error en el servidor", details: err.message });
   }
 });
 
-app.post('/api/logout', (req, res) => {
-  res.clearCookie('access_token');
-  res.json({ message: "Session closed" });
+// --- VERIFICACIÓN DE EMAIL (Endpoint Nuevo) ---
+app.post('/api/verify-email', async (req, res) => {
+  const { token } = req.body;
+  try {
+    const result = await pool.query("SELECT * FROM users WHERE verification_token = $1", [token]);
+    
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: "Token inválido o expirado" });
+    }
+
+    const user = result.rows[0];
+
+    // Activar usuario y limpiar el token
+    await pool.query(
+      "UPDATE users SET is_verified = TRUE, verification_token = NULL WHERE id = $1", 
+      [user.id]
+    );
+
+    res.json({ message: "Cuenta verificada con éxito" });
+  } catch (err) { 
+    console.error(err);
+    res.status(500).json({ error: "Error verificando cuenta" }); 
+  }
 });
 
+// --- CERRAR SESIÓN ---
+app.post('/api/logout', (req, res) => {
+  res.clearCookie('access_token');
+  res.json({ message: "Sesión cerrada" });
+});
+
+// --- PERFIL DE USUARIO ---
 app.get('/api/profile', authMiddleware, async (req, res) => {
   try {
     const userResult = await pool.query("SELECT id, email, role, faculty_id, name, avatar, google_id FROM users WHERE id = $1", [req.user.id]);
     if (userResult.rows.length > 0) res.json({ user: userResult.rows[0] });
-    else res.status(404).json({ error: "User not found" });
-  } catch (error) { res.status(500).json({ error: "Error fetching profile" }); }
+    else res.status(404).json({ error: "Usuario no encontrado" });
+  } catch (error) { res.status(500).json({ error: "Error obteniendo perfil" }); }
 });
 
 // ==========================================
-// 7. START SERVER
+// 7. INICIAR SERVIDOR
 // ==========================================
 server.listen(PORT, () => {
-  console.log(`🚀 Backend Server + Sockets ready at http://localhost:${PORT}`);
+  console.log(`🚀 Servidor Backend listo en http://localhost:${PORT}`);
 });

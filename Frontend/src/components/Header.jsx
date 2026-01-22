@@ -9,19 +9,21 @@ export function Header({ className, children }) {
       {/* Lado Izquierdo: Siempre es el Logo y Título */}
       <div className="flex items-center gap-3 select-none">
         <UCELogoImage className="w-16 h-auto object-contain drop-shadow-md" />
-        {/* Separador vertical sutil */}
-        <div className="h-10 w-px bg-white/20 hidden sm:block"></div>
+        
+        {/* Separador vertical: Gris oscuro en modo claro, Blanco translúcido en oscuro */}
+        <div className="h-10 w-px bg-slate-800/20 dark:bg-white/20 hidden sm:block"></div>
 
-        {/* Textos */}
-        <div className="text-white flex flex-col justify-center">
+        {/* Textos: Usamos Slate (Gris Neutro) */}
+        <div className="flex flex-col justify-center text-slate-800 dark:text-white">
           <h2 className="text-sm sm:text-base font-bold uppercase tracking-widest leading-none text-shadow-sm">
             MAPA INTERACTIVO 3D
           </h2>
-          <span className="text-xs sm:text-sm font-medium tracking-wide text-white/90">
+          {/* Subtítulo: Gris medio en claro, Gris claro en oscuro */}
+          <span className="text-xs sm:text-sm font-medium tracking-wide text-slate-600 dark:text-slate-300">
             Universidad Central del Ecuador
           </span>
-          {/* Lema en latín - visible solo en pantallas medianas hacia arriba */}
-          <p className="hidden md:block text-[10px] text-blue-200 italic font-serif mt-0.5 tracking-wider opacity-80">
+          {/* Lema: Azul oscuro en claro, Azul claro en oscuro */}
+          <p className="hidden md:block text-[10px] italic font-serif mt-0.5 tracking-wider opacity-90 text-blue-800 dark:text-blue-200">
             "Omnium Potentior Est Sapientia"
           </p>
         </div>

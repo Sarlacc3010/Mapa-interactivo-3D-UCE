@@ -9,7 +9,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// 1. ACEPTAMOS EL NUEVO PARÁMETRO 'eventDescription'
+// --- 1. NOTIFICACIÓN DE EVENTOS (Tu función original) ---
 const sendEventNotification = async (emails, eventTitle, eventDate, eventDescription, eventLocation) => {
   if (!emails || emails.length === 0) return;
 
@@ -50,10 +50,52 @@ const sendEventNotification = async (emails, eventTitle, eventDate, eventDescrip
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`📧 Notificación enviada exitosamente a ${emails.length} usuarios.`);
+    console.log(`📧 Notificación de evento enviada a ${emails.length} usuarios.`);
   } catch (error) {
-    console.error("❌ Error enviando correos:", error);
+    console.error("❌ Error enviando notificación de evento:", error);
   }
 };
 
-module.exports = { sendEventNotification };
+// --- 2. NUEVA FUNCIÓN: VERIFICACIÓN DE CORREO ---
+const sendVerificationEmail = async (email, token) => {
+  // Ajusta la URL si en producción tu frontend está en otro puerto/dominio
+  const verificationUrl = `http://localhost:5173/verify-email?token=${token}`;
+
+  const mailOptions = {
+    from: `"Seguridad UCE" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: 'Verifica tu cuenta - Mapa Interactivo UCE',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+        <div style="background-color: #1e3a8a; padding: 20px; text-align: center;">
+          <h2 style="color: white; margin: 0;">Verificación de Cuenta</h2>
+        </div>
+        <div style="padding: 20px; text-align: center;">
+          <p style="font-size: 16px; color: #333;">Hola,</p>
+          <p style="color: #555;">Gracias por registrarte en el Mapa Interactivo de la UCE.</p>
+          <p style="color: #555;">Para acceder a la plataforma y confirmar que este es tu correo real, por favor haz clic en el siguiente botón:</p>
+          
+          <div style="margin: 30px 0;">
+            <a href="${verificationUrl}" style="background-color: #D9232D; color: white; padding: 14px 28px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px;">Verificar mi Correo</a>
+          </div>
+          
+          <p style="font-size: 12px; color: #999; margin-top: 30px;">O copia y pega este enlace en tu navegador:</p>
+          <p style="font-size: 12px; color: #1e3a8a; word-break: break-all;">${verificationUrl}</p>
+        </div>
+        <div style="background-color: #f1f1f1; padding: 10px; text-align: center; font-size: 12px; color: #666;">
+          &copy; 2026 Campus Virtual UCE
+        </div>
+      </div>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`📧 Correo de verificación enviado a: ${email}`);
+  } catch (error) {
+    console.error("❌ Error enviando verificación:", error);
+  }
+};
+
+// 🔥 EXPORTAMOS AMBAS FUNCIONES
+module.exports = { sendEventNotification, sendVerificationEmail };

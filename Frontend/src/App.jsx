@@ -1,15 +1,16 @@
 import React, { useState, useEffect, Suspense, lazy } from "react";
+import { Routes, Route } from "react-router-dom";
 
-// 1. IMPORTAMOS LIBRERÍAS DE GESTIÓN DE ESTADO Y SOCKETS
+// LIBRERÍAS DE GESTIÓN DE ESTADO Y SOCKETS
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SocketProvider } from "./context/SocketContext";
 import api from "./api/client";
 
-// 🔥 NUEVO: Contexto de Tema y Botón Switch
+// Contexto de Tema y Botón Switch
 import { ThemeProvider } from "./context/ThemeContext";
 import { ThemeToggle } from "./components/ThemeToggle";
 
-// 2. IMPORTAMOS LOS NUEVOS HOOKS INTELIGENTES
+// HOOKS
 import { useLocations } from "./hooks/useLocations";
 import { useEvents } from "./hooks/useEvents";
 
@@ -27,7 +28,7 @@ import {
   LogOut,
   Settings,
   HelpCircle,
-  Map,
+  Map as MapIcon, 
   Clock,
   Calendar,
   Search,
@@ -46,13 +47,15 @@ import { FirstPersonController } from "./components/fps/FirstPersonController";
 
 // Lazy Loading
 const LoginScreen = lazy(() =>
-  import("./components/LoginScreen").then((m) => ({ default: m.LoginScreen })),
+  import("./components/LoginScreen").then((m) => ({ default: m.LoginScreen }))
 );
 const AdminDashboard = lazy(() =>
-  import("./components/AdminDashboard").then((m) => ({
-    default: m.AdminDashboard,
-  })),
+  import("./components/AdminDashboard").then((m) => ({ default: m.AdminDashboard }))
 );
+const VerifyEmail = lazy(() => 
+  import("./components/VerifyEmail").then((m) => ({ default: m.VerifyEmail }))
+);
+
 const Campus3D = lazy(() => import("./Campus3D"));
 
 // Configuración Cliente
@@ -84,7 +87,7 @@ function Loader3D() {
 }
 
 // ====================================================================
-// COMPONENTE PRINCIPAL (LÓGICA + UI)
+// COMPONENTE PRINCIPAL
 // ====================================================================
 function AppContent() {
   const { locations } = useLocations();
@@ -138,13 +141,13 @@ function AppContent() {
       !welcomeAnimationDone
     ) {
       const myFaculty = locations.find(
-        (l) => String(l.id) === String(userProfile.faculty_id),
+        (l) => String(l.id) === String(userProfile.faculty_id)
       );
       if (myFaculty) {
         setSelectedLoc(myFaculty);
         setWelcomeAnimationDone(true);
         const hasEvents = dbEvents.some(
-          (e) => String(e.location_id) === String(myFaculty.id),
+          (e) => String(e.location_id) === String(myFaculty.id)
         );
         if (hasEvents) setTimeout(() => setShowEventsModal(true), 1500);
       }
@@ -199,7 +202,7 @@ function AppContent() {
     setShowEventsModal(true);
   };
 
-  // --- RENDERIZADO ---
+  // --- RENDERIZADO CONDICIONAL ---
   if (!userRole)
     return (
       <Suspense fallback={<ScreenLoader />}>
@@ -224,7 +227,6 @@ function AppContent() {
   return (
     <div
       id="canvas-container"
-      // CAMBIO: Fondo gris claro en modo Light, Negro en modo Dark
       className="relative h-screen w-screen bg-gray-50 dark:bg-gray-900 overflow-hidden font-sans flex flex-col transition-colors duration-500"
     >
       {/* 1. ELEMENTOS UI PARA MODO CAMINAR */}
@@ -239,12 +241,12 @@ function AppContent() {
         </>
       )}
 
-      {/* 🔥 BOTÓN DARK MODE */}
+      {/* BOTÓN DARK MODE */}
       <div className="absolute bottom-28 right-8 z-50 animate-in slide-in-from-right-10 fade-in duration-700">
         <ThemeToggle />
       </div>
 
-      {/* 2. BOTÓN CAMBIO VISTA (Adaptado Claro/Oscuro) */}
+      {/* 2. BOTÓN CAMBIO VISTA */}
       <div className="absolute bottom-8 right-8 z-50">
         <button
           onClick={() => {
@@ -258,11 +260,7 @@ function AppContent() {
           disabled={isTransitioning}
           className={`
             relative group flex items-center gap-3 px-6 py-4 rounded-2xl font-bold transition-all duration-500 transform hover:scale-105 active:scale-95 border
-            
-            /* ESTILOS MODO CLARO (Limpios) */
             bg-white text-gray-700 border-gray-200 shadow-xl hover:bg-gray-50
-            
-            /* ESTILOS MODO OSCURO (Neón) */
             dark:bg-slate-900/80 
             ${
               isFpsMode
@@ -272,7 +270,6 @@ function AppContent() {
             ${isTransitioning ? "opacity-50 cursor-wait grayscale" : ""}
           `}
         >
-          {/* Brillo interno solo en Dark Mode */}
           <div
             className={`hidden dark:block absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-20 transition-opacity duration-500 ${isFpsMode ? "bg-red-500" : "bg-cyan-500"}`}
           ></div>
@@ -360,93 +357,129 @@ function AppContent() {
         </KeyboardControls>
       </div>
 
-      {/* 5. HEADER COMPLETO */}
+      {/* 5. HEADER COMPLETO (RESTAURADO: ESTILO NEÓN) */}
       <Header
         className="absolute top-0 left-0 w-full border-b transition-colors duration-500 z-50
                           bg-gradient-to-b from-white/90 to-transparent border-white/20
                           dark:from-black/80 dark:border-none"
       >
         <div className="flex items-center gap-3">
-          {/* TOOLKIT (GUÍA) */}
+          {/* TOOLKIT (GUÍA) - ESTILO RESTAURADO */}
           {userRole !== "admin" && (
             <div className="relative group">
               <button
-                className="flex items-center gap-2 text-xs font-medium cursor-help transition-colors px-3 py-1.5 rounded-full border
-                                 text-gray-700 bg-white/50 border-gray-200 hover:bg-white hover:text-blue-700
-                                 dark:text-white/80 dark:bg-white/10 dark:border-white/10 dark:hover:text-white dark:hover:bg-white/20"
+                className="flex items-center gap-2 text-xs font-medium cursor-help transition-all duration-300 px-3 py-1.5 rounded-full border
+                  /* MODO CLARO */
+                  text-gray-700 bg-white/50 border-gray-200 hover:bg-white hover:text-blue-700
+                  /* MODO OSCURO (NEÓN) */
+                  dark:bg-slate-900 dark:text-cyan-400 dark:border-cyan-500/50 
+                  dark:hover:text-cyan-300 dark:hover:border-cyan-400 
+                  dark:hover:shadow-[0_0_15px_rgba(34,211,238,0.4)]"
               >
-                <HelpCircle size={14} />
+                <HelpCircle size={14} className="dark:drop-shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
                 <span className="hidden sm:inline">Guía</span>
               </button>
 
-              <div className="absolute right-0 top-full pt-3 w-72 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 ease-out transform translate-y-2 group-hover:translate-y-0 z-50">
+              <div className="absolute right-0 top-full pt-3 w-72 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 ease-out transform translate-y-2 group-hover:translate-y-0 z-50">
                 <div
-                  className="p-5 rounded-xl shadow-2xl backdrop-blur-md border
-                                bg-white/95 text-gray-800 border-gray-100
-                                dark:bg-black/90 dark:text-white dark:border-white/10"
+                  className="p-5 rounded-xl backdrop-blur-md border
+                             /* MODO CLARO */
+                             bg-white/95 text-gray-800 border-gray-100 shadow-2xl
+                             /* MODO OSCURO (CONTENEDOR NEÓN) */
+                             dark:bg-slate-900/95 dark:text-slate-200 dark:border-cyan-500/30 
+                             dark:shadow-[0_0_30px_rgba(6,182,212,0.15)]"
                 >
-                  <h4 className="text-xs font-bold uppercase mb-4 tracking-wider border-b pb-2 text-[#D9232D] border-gray-200 dark:border-white/10">
+                  <h4 className="text-xs font-bold uppercase mb-4 tracking-wider border-b pb-2 
+                                 /* MODO CLARO */
+                                 text-[#D9232D] border-gray-200 
+                                 /* MODO OSCURO (TÍTULO BRILLANTE) */
+                                 dark:text-cyan-400 dark:border-cyan-500/30 dark:drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]">
                     ¿Qué puedes hacer?
                   </h4>
                   <ul className="space-y-4 text-xs">
-                    <li className="flex items-start gap-3">
-                      <div className="p-1.5 bg-blue-500/10 rounded-md shrink-0 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400">
-                        <Map size={16} />
+                    {/* ITEM 1: MAPA (AZUL NEÓN) */}
+                    <li className="flex items-start gap-3 group/item">
+                      <div className="p-1.5 rounded-md shrink-0 transition-all duration-300
+                                    bg-blue-500/10 text-blue-600 
+                                    dark:bg-blue-500/10 dark:text-blue-400 dark:border dark:border-blue-500/30 
+                                    dark:group-hover/item:shadow-[0_0_10px_rgba(59,130,246,0.4)] dark:group-hover/item:border-blue-400">
+                        <MapIcon size={16} />
                       </div>
                       <div>
-                        <p className="font-bold opacity-90">Explora el Campus</p>
-                        <p className="opacity-60 leading-snug">
+                        <p className="font-bold opacity-90 dark:text-blue-200">Explora el Campus</p>
+                        <p className="opacity-60 leading-snug dark:text-slate-400">
                           Navega libremente por el modelo 3D.
                         </p>
                       </div>
                     </li>
-                    <li className="flex items-start gap-3">
-                      <div className="p-1.5 bg-green-500/10 rounded-md shrink-0 text-green-600 dark:bg-green-500/20 dark:text-green-400">
+
+                    {/* ITEM 2: BUSCAR (VERDE NEÓN) */}
+                    <li className="flex items-start gap-3 group/item">
+                      <div className="p-1.5 rounded-md shrink-0 transition-all duration-300
+                                    bg-green-500/10 text-green-600 
+                                    dark:bg-emerald-500/10 dark:text-emerald-400 dark:border dark:border-emerald-500/30
+                                    dark:group-hover/item:shadow-[0_0_10px_rgba(16,185,129,0.4)] dark:group-hover/item:border-emerald-400">
                         <Search size={16} />
                       </div>
                       <div>
-                        <p className="font-bold opacity-90">
+                        <p className="font-bold opacity-90 dark:text-emerald-200">
                           Encuentra Facultades
                         </p>
-                        <p className="opacity-60 leading-snug">
+                        <p className="opacity-60 leading-snug dark:text-slate-400">
                           Usa la lupa para buscar edificios.
                         </p>
                       </div>
                     </li>
-                    <li className="flex items-start gap-3">
-                      <div className="p-1.5 bg-yellow-500/10 rounded-md shrink-0 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-400">
+
+                    {/* ITEM 3: HORARIOS (AMARILLO NEÓN) */}
+                    <li className="flex items-start gap-3 group/item">
+                      <div className="p-1.5 rounded-md shrink-0 transition-all duration-300
+                                    bg-yellow-500/10 text-yellow-600 
+                                    dark:bg-yellow-500/10 dark:text-yellow-400 dark:border dark:border-yellow-500/30
+                                    dark:group-hover/item:shadow-[0_0_10px_rgba(234,179,8,0.4)] dark:group-hover/item:border-yellow-400">
                         <Clock size={16} />
                       </div>
                       <div>
-                        <p className="font-bold opacity-90">
+                        <p className="font-bold opacity-90 dark:text-yellow-200">
                           Verifica Horarios
                         </p>
-                        <p className="opacity-60 leading-snug">
+                        <p className="opacity-60 leading-snug dark:text-slate-400">
                           Mira en tiempo real si está abierto.
                         </p>
                       </div>
                     </li>
-                    <li className="flex items-start gap-3">
-                      <div className="p-1.5 bg-purple-500/10 rounded-md shrink-0 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400">
+
+                    {/* ITEM 4: EVENTOS (PÚRPURA NEÓN) */}
+                    <li className="flex items-start gap-3 group/item">
+                      <div className="p-1.5 rounded-md shrink-0 transition-all duration-300
+                                    bg-purple-500/10 text-purple-600 
+                                    dark:bg-purple-500/10 dark:text-purple-400 dark:border dark:border-purple-500/30
+                                    dark:group-hover/item:shadow-[0_0_10px_rgba(168,85,247,0.4)] dark:group-hover/item:border-purple-400">
                         <Calendar size={16} />
                       </div>
                       <div>
-                        <p className="font-bold opacity-90">
+                        <p className="font-bold opacity-90 dark:text-purple-200">
                           Agenda de Eventos
                         </p>
-                        <p className="opacity-60 leading-snug">
+                        <p className="opacity-60 leading-snug dark:text-slate-400">
                           Entérate de las actividades.
                         </p>
                       </div>
                     </li>
+
+                    {/* ITEM 5: TU FACULTAD (ROSA NEÓN - Solo estudiantes) */}
                     {userRole === "student" && (
-                      <li className="flex items-start gap-3 p-2 rounded border bg-gray-50 border-gray-100 dark:bg-white/5 dark:border-white/10">
-                        <div className="p-1.5 bg-red-500/10 rounded-md shrink-0 text-red-600 dark:bg-red-500/20 dark:text-red-400">
+                      <li className="flex items-start gap-3 p-2 rounded border transition-all duration-300
+                                   bg-gray-50 border-gray-100 
+                                   dark:bg-slate-800/50 dark:border-pink-500/30 dark:hover:shadow-[0_0_15px_rgba(236,72,153,0.15)]">
+                        <div className="p-1.5 rounded-md shrink-0 
+                                      bg-red-500/10 text-red-600 
+                                      dark:bg-pink-500/10 dark:text-pink-400 dark:shadow-[0_0_8px_rgba(236,72,153,0.3)]">
                           <MapPin size={16} />
                         </div>
                         <div>
-                          <p className="font-bold opacity-90">Tu Facultad</p>
-                          <p className="opacity-60 leading-snug">
+                          <p className="font-bold opacity-90 dark:text-pink-200">Tu Facultad</p>
+                          <p className="opacity-60 leading-snug dark:text-slate-400">
                             Tu edificio está señalado con un pin.
                           </p>
                         </div>
@@ -470,19 +503,17 @@ function AppContent() {
 
           <div className="flex items-center gap-2">
             {userProfile?.name && (
-              <span
-                className="hidden md:block text-xs font-medium px-3 py-1.5 rounded-full border transition-colors
-                                 text-gray-700 bg-white/60 border-gray-200
-                                 dark:text-white/80 dark:bg-black/30 dark:border-white/5"
-              >
+              <span className="hidden md:block text-xs font-medium px-3 py-1.5 rounded-full border transition-colors
+                               text-gray-700 bg-white/60 border-gray-200
+                               dark:text-white/80 dark:bg-black/30 dark:border-white/5">
                 Hola, {userProfile.name.split(" ")[0]}
               </span>
             )}
             <button
               onClick={handleLogout}
               className="p-2 rounded-lg transition-colors border
-                               bg-white/50 text-red-500 border-gray-200 hover:bg-red-50
-                               dark:bg-white/10 dark:text-red-400 dark:border-white/5 dark:hover:bg-red-900/50 dark:hover:text-red-300"
+                        bg-white/50 text-red-500 border-gray-200 hover:bg-red-50
+                        dark:bg-white/10 dark:text-red-400 dark:border-white/5 dark:hover:bg-red-900/50 dark:hover:text-red-300"
             >
               <LogOut className="w-5 h-5" />
             </button>
@@ -530,13 +561,28 @@ function AppContent() {
   );
 }
 
-// 🔥 ENVOLTURA FINAL CON THEME PROVIDER
+// ====================================================================
+// WRAPPER PRINCIPAL (CON ROUTES Y SIN BROWSERROUTER)
+// ====================================================================
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <SocketProvider>
-          <AppContent />
+          <Routes>
+            {/* Ruta especial para Verificar Email */}
+            <Route 
+              path="/verify-email" 
+              element={
+                <Suspense fallback={<ScreenLoader />}>
+                  <VerifyEmail />
+                </Suspense>
+              } 
+            />
+            
+            {/* Ruta Principal: Maneja Login, Mapa y Dashboard */}
+            <Route path="/*" element={<AppContent />} />
+          </Routes>
         </SocketProvider>
       </ThemeProvider>
     </QueryClientProvider>
