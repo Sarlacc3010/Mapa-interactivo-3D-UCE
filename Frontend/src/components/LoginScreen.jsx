@@ -27,7 +27,6 @@ export function LoginScreen({ onLogin }) {
     fetch('http://localhost:5000/api/locations')
       .then(res => res.json())
       .then(data => {
-        // Validación para evitar errores si data no es array
         if (Array.isArray(data)) {
             const facs = data.filter(l => l.name.toLowerCase().includes('facultad'));
             setFaculties(facs);
@@ -72,10 +71,9 @@ export function LoginScreen({ onLogin }) {
       const data = await response.json();
       
       if (response.ok) {
-        // Si es registro, mostramos el mensaje de éxito o pasamos al login
         if (isRegistering && data.message) {
-            alert(data.message); // O usa un estado para mostrar mensaje UI
-            setIsRegistering(false); // Volver al login
+            alert(data.message); 
+            setIsRegistering(false); 
         } else {
             onLogin(data.user.role);
         }
@@ -105,9 +103,10 @@ export function LoginScreen({ onLogin }) {
       <main className="flex-1 flex items-center justify-center p-4 z-10">
        
        {/* TARJETA PRINCIPAL */}
-       <div className="w-full max-w-md bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl animate-in fade-in zoom-in duration-300 min-h-[500px] flex flex-col overflow-hidden border border-white/20">
+       {/* 🔥 CAMBIO AQUI: Agregado 'h-[70vh] min-h-[550px]' para fijar la altura y forzar scroll */}
+       <div className="w-full max-w-md bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl animate-in fade-in zoom-in duration-300 h-[70vh] min-h-[550px] flex flex-col overflow-hidden border border-white/20">
           
-          {/* CABECERA DE LA TARJETA */}
+          {/* CABECERA DE LA TARJETA (Fija) */}
           <div className="text-center p-8 pb-4 shrink-0 border-b border-gray-200 z-20">
             <div className="flex justify-center mb-4">
               <UCELogoImage className="w-20 h-auto drop-shadow-md" />
@@ -120,13 +119,12 @@ export function LoginScreen({ onLogin }) {
             </p>
           </div>
 
-          {/* CUERPO DEL FORMULARIO */}
+          {/* CUERPO DEL FORMULARIO (Scrollable) */}
           <div className="overflow-y-auto p-8 pt-6 custom-scrollbar flex-1">
               <form onSubmit={handleSubmit} className="space-y-5">
                 
                 {isRegistering && (
                     <div className="space-y-1.5 animate-in slide-in-from-top-2">
-                        {/* 🔥 FORZAMOS COLOR OSCURO EN LABEL */}
                         <Label className="text-gray-700 font-semibold text-sm">Nombre Completo</Label>
                         <Input 
                             type="text" 
@@ -134,7 +132,6 @@ export function LoginScreen({ onLogin }) {
                             value={name} 
                             onChange={(e) => setName(e.target.value)} 
                             required 
-                            // 🔥 FORZAMOS TEXTO OSCURO EN INPUT
                             className="bg-white border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500/20" 
                         />
                     </div>
