@@ -1,42 +1,64 @@
 import React, { useState, useEffect } from "react";
+import { useAuthStore } from "../store/authStore"; // Import Zustand Store
+import api from "../api/client"; 
 import { Button, Input, Label } from "./ui/shim"; 
 import { Header } from "./Header";
 import { Footer } from "./Footer";
 import { UCELogoImage } from "./UCELogoImage";
-import { MapPin, Loader } from "lucide-react"; 
+import { MapPin, Loader, User } from "lucide-react"; 
 
-export function LoginScreen({ onLogin }) {
+export function LoginScreen() {
+  const login = useAuthStore((state) => state.login); // Access global login action
   const [isRegistering, setIsRegistering] = useState(false);
   
-  // Estados del formulario
+  // Form states
   const [name, setName] = useState(""); 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPass, setConfirmPass] = useState("");
   
-  // Lógica de Facultades
+  // Faculty logic
   const [faculties, setFaculties] = useState([]);
   const [selectedFaculty, setSelectedFaculty] = useState("");
 
-  // Estados de UI
+  // UI states
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // 1. CARGAR LISTA DE FACULTADES
+  // Load faculties on mount
   useEffect(() => {
-    fetch('http://localhost:5000/api/locations')
-      .then(res => res.json())
-      .then(data => {
+    api.get('/locations')
+      .then(res => {
+        const data = res.data;
         if (Array.isArray(data)) {
             const facs = data.filter(l => l.name.toLowerCase().includes('facultad'));
             setFaculties(facs);
         }
       })
-      .catch(err => console.error("Error cargando facultades", err));
+      .catch(err => console.error("Error loading faculties", err));
   }, []);
 
   const isInstitutional = email.toLowerCase().includes('@uce.edu.ec');
 
+  // HANDLER: Guest Login Logic
+  const handleGuestLogin = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await api.post('/login/guest');
+      if (response.data.user) {
+        // Update global state via Zustand
+        login(response.data.user);
+      }
+    } catch (err) {
+      console.error("Guest login failed", err);
+      setError("No se pudo ingresar como invitado. Inténtalo de nuevo.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // HANDLER: Standard Login/Register Logic
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -47,42 +69,34 @@ export function LoginScreen({ onLogin }) {
             return; 
         }
         if (isInstitutional && !selectedFaculty) {
-            setError("Por favor selecciona tu Facultad para continuar.");
+            setError("Por favor selecciona tu Facultad.");
             return;
         }
     }
     
     setLoading(true);
-    const endpoint = isRegistering ? '/api/register' : '/api/login';
+    const endpoint = isRegistering ? '/register' : '/login';
     
     try {
-      const response = await fetch(`http://localhost:5000${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', 
-        body: JSON.stringify({ 
-            email, 
-            password, 
-            name: isRegistering ? name : undefined, 
-            faculty_id: (isRegistering && isInstitutional) ? selectedFaculty : null 
-        }),
+      const response = await api.post(endpoint, { 
+          email, 
+          password, 
+          name: isRegistering ? name : undefined, 
+          faculty_id: (isRegistering && isInstitutional) ? selectedFaculty : null 
       });
       
-      const data = await response.json();
+      const data = response.data;
       
-      if (response.ok) {
-        if (isRegistering && data.message) {
-            alert(data.message); 
-            setIsRegistering(false); 
-        } else {
-            onLogin(data.user.role);
-        }
+      if (isRegistering && data.message) {
+          alert(data.message); 
+          setIsRegistering(false); 
       } else {
-        setError(data.error || "Ocurrió un error inesperado");
+          // Login success: Update global state
+          login(data.user);
       }
     } catch (err) {
       console.error(err);
-      setError("Error de conexión con el servidor");
+      setError(err.response?.data?.error || "Ocurrió un error inesperado");
     } finally {
       setLoading(false);
     }
@@ -90,23 +104,11 @@ export function LoginScreen({ onLogin }) {
 
   return (
     <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-[#1e3a8a] to-[#D9232D] relative overflow-hidden font-sans">
-      
-      <Header isLoginPage={true}>
-         <a 
-           href="mailto:soporte@uce.edu.ec?subject=Ayuda%20Plataforma%203D"
-           className="hidden sm:flex items-center gap-2 text-white/80 text-xs font-medium cursor-pointer hover:text-white transition-colors bg-white/10 px-3 py-1.5 rounded-full hover:bg-white/20"
-         >
-            <span>?</span> Ayuda / Soporte
-         </a>
-      </Header>
+      <Header isLoginPage={true} />
       
       <main className="flex-1 flex items-center justify-center p-4 z-10">
-       
-       {/* TARJETA PRINCIPAL */}
-       {/* 🔥 CAMBIO AQUI: Agregado 'h-[70vh] min-h-[550px]' para fijar la altura y forzar scroll */}
        <div className="w-full max-w-md bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl animate-in fade-in zoom-in duration-300 h-[70vh] min-h-[550px] flex flex-col overflow-hidden border border-white/20">
           
-          {/* CABECERA DE LA TARJETA (Fija) */}
           <div className="text-center p-8 pb-4 shrink-0 border-b border-gray-200 z-20">
             <div className="flex justify-center mb-4">
               <UCELogoImage className="w-20 h-auto drop-shadow-md" />
@@ -119,20 +121,19 @@ export function LoginScreen({ onLogin }) {
             </p>
           </div>
 
-          {/* CUERPO DEL FORMULARIO (Scrollable) */}
           <div className="overflow-y-auto p-8 pt-6 custom-scrollbar flex-1">
               <form onSubmit={handleSubmit} className="space-y-5">
                 
                 {isRegistering && (
-                    <div className="space-y-1.5 animate-in slide-in-from-top-2">
+                    <div className="space-y-1.5">
                         <Label className="text-gray-700 font-semibold text-sm">Nombre Completo</Label>
                         <Input 
                             type="text" 
-                            placeholder="Juan Pérez" 
+                            placeholder="Juan Perez" 
                             value={name} 
                             onChange={(e) => setName(e.target.value)} 
                             required 
-                            className="bg-white border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500/20" 
+                            className="bg-white border-gray-300 text-gray-900 focus:border-blue-500" 
                         />
                     </div>
                 )}
@@ -145,17 +146,17 @@ export function LoginScreen({ onLogin }) {
                     value={email} 
                     onChange={(e) => setEmail(e.target.value)} 
                     required 
-                    className="bg-white border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500/20" 
+                    className="bg-white border-gray-300 text-gray-900 focus:border-blue-500" 
                   />
                   {isRegistering && isInstitutional && (
-                      <p className="text-[11px] text-green-600 font-bold flex items-center gap-1 animate-in fade-in bg-green-50 p-1.5 rounded border border-green-100">
-                          ✓ Correo institucional detectado
+                      <p className="text-[11px] text-green-600 font-bold bg-green-50 p-1.5 rounded border border-green-100">
+                          Correo institucional detectado
                       </p>
                   )}
                 </div>
 
                 {isRegistering && isInstitutional && (
-                    <div className="space-y-1.5 animate-in slide-in-from-top-2 p-4 bg-blue-50/50 border border-blue-100 rounded-xl">
+                    <div className="space-y-1.5 p-4 bg-blue-50/50 border border-blue-100 rounded-xl">
                         <Label className="text-[#1e3a8a] font-bold text-sm block mb-1">Selecciona tu Facultad</Label>
                         <div className="relative">
                             <MapPin className="absolute left-3 top-2.5 text-blue-500 pointer-events-none" size={18} />
@@ -163,22 +164,14 @@ export function LoginScreen({ onLogin }) {
                                 value={selectedFaculty}
                                 onChange={(e) => setSelectedFaculty(e.target.value)}
                                 required
-                                className="w-full pl-10 pr-8 py-2.5 text-sm bg-white border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 appearance-none shadow-sm cursor-pointer hover:border-blue-300 transition-colors"
+                                className="w-full pl-10 pr-8 py-2.5 text-sm bg-white border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
                             >
-                                <option value="" className="text-gray-400">-- Elige una opción --</option>
+                                <option value="" className="text-gray-400">-- Seleccionar Opción --</option>
                                 {faculties.map((fac) => (
-                                    <option key={fac.id} value={fac.id} className="text-gray-900">
-                                        {fac.name}
-                                    </option>
+                                    <option key={fac.id} value={fac.id}>{fac.name}</option>
                                 ))}
                             </select>
-                            <div className="absolute right-3 top-3 pointer-events-none text-blue-400 text-[10px]">
-                                ▼
-                            </div>
                         </div>
-                        <p className="text-[11px] text-blue-600/80 leading-tight pt-2">
-                            Esto nos servirá para personalizar tu experiencia en el mapa.
-                        </p>
                     </div>
                 )}
                 
@@ -190,12 +183,12 @@ export function LoginScreen({ onLogin }) {
                     value={password} 
                     onChange={(e) => setPassword(e.target.value)} 
                     required 
-                    className="bg-white border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500/20" 
+                    className="bg-white border-gray-300 text-gray-900 focus:border-blue-500" 
                   />
                 </div>
 
                 {isRegistering && (
-                  <div className="space-y-1.5 animate-in slide-in-from-top-2">
+                  <div className="space-y-1.5">
                     <Label className="text-gray-700 font-semibold text-sm">Confirmar Contraseña</Label>
                     <Input 
                       type="password" 
@@ -203,40 +196,27 @@ export function LoginScreen({ onLogin }) {
                       value={confirmPass} 
                       onChange={(e) => setConfirmPass(e.target.value)} 
                       required 
-                      className="bg-white border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500/20" 
+                      className="bg-white border-gray-300 text-gray-900 focus:border-blue-500" 
                     />
                   </div>
                 )}
 
                 {error && (
-                    <div className="p-3 rounded-lg bg-red-50 text-red-600 text-xs font-bold text-center border border-red-100 animate-pulse flex items-center justify-center gap-2">
-                        <span className="bg-red-100 p-0.5 rounded-full px-1.5">!</span> {error}
+                    <div className="p-3 rounded-lg bg-red-50 text-red-600 text-xs font-bold text-center border border-red-100">
+                        {error}
                     </div>
                 )}
                 
                 <Button 
                     type="submit" 
-                    className="w-full h-12 mt-6 shadow-lg shadow-blue-900/20 hover:shadow-blue-900/40 transition-all bg-[#1e3a8a] hover:bg-[#152c6e] text-white font-bold text-base rounded-xl" 
+                    className="w-full h-12 mt-6 bg-[#1e3a8a] hover:bg-[#152c6e] text-white font-bold rounded-xl" 
                     disabled={loading}
                 >
-                  {loading ? (
-                    <span className="flex items-center gap-2 justify-center">
-                        <Loader className="animate-spin w-4 h-4" /> Procesando...
-                    </span>
-                  ) : (isRegistering ? "Registrarse" : "Ingresar")}
+                  {loading ? <Loader className="animate-spin w-4 h-4 mx-auto" /> : (isRegistering ? "Registrarse" : "Iniciar Sesión")}
                 </Button>
 
                 {!isRegistering && (
-                    <div className="mt-6">
-                      <div className="relative mb-5">
-                        <div className="absolute inset-0 flex items-center">
-                          <span className="w-full border-t border-gray-200" />
-                        </div>
-                        <div className="relative flex justify-center text-xs uppercase tracking-wider">
-                          <span className="bg-white px-3 text-gray-400 font-semibold">Institucional</span>
-                        </div>
-                      </div>
-                      
+                    <div className="mt-4 space-y-3">
                       <button
                         type="button"
                         onClick={() => window.location.href = "http://localhost:5000/auth/google"}
@@ -245,25 +225,36 @@ export function LoginScreen({ onLogin }) {
                         <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5 group-hover:scale-110 transition-transform" alt="G" />
                         Ingresar con Google
                       </button>
+
+                      <div className="relative flex py-2 items-center">
+                        <div className="flex-grow border-t border-gray-200"></div>
+                        <span className="flex-shrink-0 mx-4 text-gray-400 text-xs">O</span>
+                        <div className="flex-grow border-t border-gray-200"></div>
+                      </div>
+
+                      <button
+                         type="button"
+                         onClick={handleGuestLogin}
+                         disabled={loading}
+                         className="w-full flex items-center justify-center gap-2 text-gray-500 hover:text-[#1e3a8a] text-sm font-semibold transition-colors py-2"
+                       >
+                         <User size={16} /> Continuar como Invitado
+                       </button>
                     </div>
                 )}
               </form>
 
-              <div className="mt-8 pt-4 border-t border-gray-100 text-center">
+              <div className="mt-6 pt-4 border-t border-gray-100 text-center">
                  <button 
                     onClick={() => { setIsRegistering(!isRegistering); setError(""); setSelectedFaculty(""); }} 
                     className="text-[#1e3a8a] font-semibold text-sm hover:text-blue-800 transition-colors hover:underline underline-offset-4"
                  >
-                   {isRegistering 
-                     ? "← ¿Ya tienes cuenta? Inicia sesión" 
-                     : "¿Eres estudiante nuevo? Regístrate aquí"
-                   }
+                   {isRegistering ? "← ¿Ya tienes cuenta? Inicia sesión" : "¿Eres estudiante nuevo? Regístrate aquí"}
                  </button>
               </div>
           </div>
        </div>
       </main>
-
       <Footer />
     </div>
   );
