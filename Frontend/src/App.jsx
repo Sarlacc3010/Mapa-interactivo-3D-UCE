@@ -19,9 +19,17 @@ import { Scene3D } from "./components/map/Scene3D";
 import { MapOverlay } from "./components/map/MapOverlay";
 
 // Lazy Loading
-const LoginScreen = lazy(() => import("./components/LoginScreen").then(m => ({ default: m.LoginScreen })));
-const AdminDashboard = lazy(() => import("./components/AdminDashboard").then(m => ({ default: m.AdminDashboard })));
-const VerifyEmail = lazy(() => import("./components/VerifyEmail").then(m => ({ default: m.VerifyEmail })));
+const LoginScreen = lazy(() =>
+  import("./components/LoginScreen").then((m) => ({ default: m.LoginScreen })),
+);
+const AdminDashboard = lazy(() =>
+  import("./components/AdminDashboard").then((m) => ({
+    default: m.AdminDashboard,
+  })),
+);
+const VerifyEmail = lazy(() =>
+  import("./components/VerifyEmail").then((m) => ({ default: m.VerifyEmail })),
+);
 
 const queryClient = new QueryClient();
 
@@ -43,7 +51,7 @@ function ScreenLoader() {
 function AppContent() {
   const { locations } = useLocations();
   const { events: dbEvents } = useEvents();
-  
+
   // ZUSTAND: Obtenemos el usuario aquí
   const { user, login, logout, isLoading } = useAuthStore();
 
@@ -74,24 +82,41 @@ function AppContent() {
     checkSession();
   }, [login, logout]);
 
-  // 2. ANIMACIÓN BIENVENIDA ESTUDIANTE
+  // 2. ANIMACIÓN BIENVENIDA ESTUDIANTE (MEJORADA)
   useEffect(() => {
-    if (
+    // Solo procedemos si tenemos todos los datos necesarios
+    const isReady =
       user?.role === "student" &&
       user?.faculty_id &&
       locations.length > 0 &&
-      !welcomeAnimationDone
-    ) {
-      const myFaculty = locations.find(
-        (l) => String(l.id) === String(user.faculty_id)
-      );
+      !welcomeAnimationDone;
+
+    if (isReady) {
+      // Buscamos la facultad usando '==' para que no importe si es número o texto
+      const myFaculty = locations.find((l) => l.id == user.faculty_id);
+
       if (myFaculty) {
-        setSelectedLoc(myFaculty);
-        setWelcomeAnimationDone(true);
-        const hasEvents = dbEvents.some(
-          (e) => String(e.location_id) === String(myFaculty.id)
+        console.log(
+          "📍 Facultad encontrada, iniciando viaje a:",
+          myFaculty.name,
         );
-        if (hasEvents) setTimeout(() => setShowEventsModal(true), 1500);
+
+        // 🔥 CLAVE: Esperamos 500ms para asegurar que el Mapa 3D esté listo antes de mover la cámara
+        const timer = setTimeout(() => {
+          setSelectedLoc(myFaculty);
+          setWelcomeAnimationDone(true);
+        }, 500);
+
+        // Revisar si hay eventos en esa facultad
+        const hasEvents = dbEvents.some((e) => e.location_id == myFaculty.id);
+        if (hasEvents) {
+          // Mostrar popup de eventos un poco después de llegar
+          setTimeout(() => setShowEventsModal(true), 2500);
+        }
+
+        return () => clearTimeout(timer);
+      } else {
+        console.warn("⚠️ No se encontró la facultad con ID:", user.faculty_id);
       }
     }
   }, [user, locations, dbEvents, welcomeAnimationDone]);
@@ -189,7 +214,7 @@ function AppContent() {
 
       {/* CAPA 2: Interfaz de Usuario (Pasamos 'user' aquí) */}
       <MapOverlay
-        user={user} 
+        user={user}
         locations={locations}
         events={dbEvents}
         selectedLoc={selectedLoc}

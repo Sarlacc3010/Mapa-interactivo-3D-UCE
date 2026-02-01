@@ -132,8 +132,18 @@ export function MapOverlay({
                 Hola, {user.name.split(" ")[0]}
               </span>
             )}
-            <button onClick={onLogout} className="p-2 rounded-lg transition-colors border bg-white/50 text-red-500 border-gray-200 hover:bg-red-50 dark:bg-white/10 dark:text-red-400 dark:border-white/5 dark:hover:bg-red-900/50 dark:hover:text-red-300">
-              <LogOut className="w-5 h-5" />
+            <button 
+                onClick={onLogout} 
+                className="p-2 rounded-lg transition-all duration-300 border shadow-sm group
+                           /* Modo Claro: Sólido Rojo UCE */
+                           bg-white text-[#D9232D] border-red-100 hover:bg-red-50 
+                           /* Modo Oscuro: Neón Rojo Brillante */
+                           dark:bg-slate-900/80 dark:text-red-400 dark:border-red-500/50 
+                           dark:hover:text-red-300 dark:hover:border-red-400 
+                           dark:hover:shadow-[0_0_15px_rgba(248,113,113,0.5)]"
+                title="Cerrar Sesión"
+            >
+              <LogOut className="w-5 h-5 stroke-[2.5px] dark:drop-shadow-[0_0_5px_rgba(248,113,113,0.8)] transition-transform group-hover:scale-110" />
             </button>
           </div>
 
