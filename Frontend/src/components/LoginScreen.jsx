@@ -91,8 +91,16 @@ export function LoginScreen() {
           alert(data.message); 
           setIsRegistering(false); 
       } else {
-          // Login success: Update global state
-          login(data.user);
+          // ✅ LOGIN EXITOSO
+          // FIX: A veces el endpoint /login no devuelve el nombre completo.
+          // Hacemos una llamada extra a /profile para garantizar que tenemos todos los datos (nombre, rol, facultad).
+          try {
+            const profileResponse = await api.get('/profile');
+            login(profileResponse.data.user); // Guardamos el usuario COMPLETO
+          } catch (profileError) {
+            console.warn("No se pudo cargar el perfil completo, usando datos básicos del login", profileError);
+            login(data.user); // Fallback por si falla /profile
+          }
       }
     } catch (err) {
       console.error(err);
