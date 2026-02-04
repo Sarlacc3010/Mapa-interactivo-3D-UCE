@@ -8,6 +8,7 @@ const initDB = async () => {
     console.log("🔄 Iniciando configuración de Base de Datos...");
 
     // 1. CREAR TABLAS BASE
+    // Table users
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -21,6 +22,7 @@ const initDB = async () => {
       );
     `);
 
+    // Table locations
     await pool.query(`
       CREATE TABLE IF NOT EXISTS locations (
           id SERIAL PRIMARY KEY,
@@ -30,10 +32,12 @@ const initDB = async () => {
           coordinates JSONB, -- Usamos JSONB para guardar {x, y, z}
           object3d_id VARCHAR(100),
           faculty_id INTEGER,
+          image_url TEXT,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
+    // Table events
     await pool.query(`
       CREATE TABLE IF NOT EXISTS events (
         id SERIAL PRIMARY KEY,
@@ -47,6 +51,7 @@ const initDB = async () => {
       );
     `);
 
+    // Table visits
     await pool.query(`
       CREATE TABLE IF NOT EXISTS visits (
         id SERIAL PRIMARY KEY,
