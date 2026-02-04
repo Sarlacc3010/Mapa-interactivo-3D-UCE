@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useSearchParams } from "react-router-dom"; // 🔥 1. AGREGADO: useSearchParams
 
 // LIBRERÍAS DE GESTIÓN DE ESTADO Y SOCKETS
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -65,24 +65,30 @@ function AppContent() {
   const [isFpsMode, setIsFpsMode] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
+  // 🔥 2. HOOK NUEVO: Para manejar la URL limpiamente
+  const [searchParams, setSearchParams] = useSearchParams();
+
   // 1. VERIFICAR SESIÓN
   useEffect(() => {
     const checkSession = async () => {
       try {
         const { data } = await api.get("/profile");
         login(data.user);
-        const params = new URLSearchParams(window.location.search);
-        if (params.get("loginSuccess")) {
-          window.history.replaceState({}, document.title, "/");
+        
+        // 🔥 3. MEJORA: Limpiamos la URL usando el hook de React Router
+        // Solo si NO es estudiante limpiamos directo. Si es estudiante, la animación puede depender de esto en el futuro.
+        // Pero como tu lógica usa 'welcomeAnimationDone', podemos limpiar aquí sin problemas.
+        if (searchParams.get("loginSuccess")) {
+           setSearchParams({}); // Reemplaza a window.history.replaceState
         }
       } catch (error) {
         logout();
       }
     };
     checkSession();
-  }, [login, logout]);
+  }, [login, logout, searchParams, setSearchParams]);
 
-  // 2. ANIMACIÓN BIENVENIDA ESTUDIANTE (MEJORADA)
+  // 2. ANIMACIÓN BIENVENIDA ESTUDIANTE (TU LÓGICA ORIGINAL)
   useEffect(() => {
     // Solo procedemos si tenemos todos los datos necesarios
     const isReady =

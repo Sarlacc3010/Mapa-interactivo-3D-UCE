@@ -23,9 +23,13 @@ const { sendVerificationEmail } = require('./src/services/mailService');
 
 // --- 2. ROUTES IMPORTS ---
 const locationRoutes = require('./src/routes/locations');
-const eventsRoutes = require('./src/routes/eventsRoutes'); 
+console.log("Cargando rutas de eventos...");
+const eventsRoutes = require('./src/routes/events'); 
+console.log("Rutas de eventos cargadas.");
 const analyticsRoutes = require('./src/routes/analyticsRoutes'); 
 const authMiddleware = require('./src/middlewares/authMiddleware');
+console.log("Cargando rutas de calendario...");
+const calendarRoutes = require('./src/routes/calendar');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -95,6 +99,7 @@ app.use('/uploads', express.static(uploadDir));
 app.use('/api/locations', locationRoutes);
 app.use('/api/events', eventsRoutes);
 app.use('/api/analytics', analyticsRoutes); 
+app.use('/api/calendar', calendarRoutes);
 
 // B. Authentication Routes (LOGIN/REGISTER/VERIFY)
 
