@@ -5,19 +5,25 @@ export function useAnalytics() {
   // 1. Resumen
   const summaryQuery = useQuery({
     queryKey: ['analytics', 'summary'],
-    queryFn: async () => (await api.get('/analytics/summary')).data
+    queryFn: async () => (await api.get('/analytics/summary')).data,
+    staleTime: 0, // Siempre refetch cuando se invalida
+    refetchOnMount: true
   });
 
   // 2. Top Lugares
   const topLocationsQuery = useQuery({
     queryKey: ['analytics', 'top'],
-    queryFn: async () => (await api.get('/analytics/top-locations')).data
+    queryFn: async () => (await api.get('/analytics/top-locations')).data,
+    staleTime: 0,
+    refetchOnMount: true
   });
 
   // 3. Horas Pico
   const peakHoursQuery = useQuery({
     queryKey: ['analytics', 'peak'],
-    queryFn: async () => (await api.get('/analytics/peak-hours')).data
+    queryFn: async () => (await api.get('/analytics/peak-hours')).data,
+    staleTime: 0,
+    refetchOnMount: true
   });
 
   return {

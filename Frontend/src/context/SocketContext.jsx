@@ -13,19 +13,27 @@ export const SocketProvider = ({ children }) => {
     // 1. Conectar al Backend
     const newSocket = io('http://localhost:5000', {
       withCredentials: true,
-      transports: ['websocket', 'polling']
+      transports: ['polling', 'websocket'], // Polling primero, luego upgrade a websocket
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
     });
 
     setSocket(newSocket);
 
     // 2. Escuchar Eventos Globales y Actualizar React Query
     newSocket.on('connect', () => console.log("🟢 [SOCKET] Conectado ID:", newSocket.id));
-    
+
     newSocket.on('server:visit_registered', (data) => {
-      console.log("📈 Nueva visita detectada:", data);
-      // 🔥 ESTO ES LA MAGIA: Obliga a recargar las gráficas automáticamente
-      queryClient.invalidateQueries(['analytics']); 
-      queryClient.invalidateQueries(['locations']);
+      console.log("📈 [SOCKET] Nueva visita detectada:", data);
+      console.log("📈 [SOCKET] Invalidando queries de analytics...");
+      // Invalidar queries específicas con queryKeys exactos
+      queryClient.invalidateQueries({ queryKey: ['analytics', 'summary'] });
+      queryClient.invalidateQueries({ queryKey: ['analytics', 'top'] });
+      queryClient.invalidateQueries({ queryKey: ['analytics', 'peak'] });
+      queryClient.invalidateQueries({ queryKey: ['locations'] });
+
+      console.log("✅ [SOCKET] Queries invalidadas, React Query debería refetch ahora");
     });
 
     newSocket.on('server:data_updated', (data) => {

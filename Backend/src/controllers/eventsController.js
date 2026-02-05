@@ -1,109 +1,212 @@
-const pool = require('../config/db'); // Importamos la DB
-const redisClient = require('../config/redis'); // Importamos Redis
-const { sendEventNotification } = require('../services/mailService'); // Importamos el servicio de correo
+const pool = require('../config/db');
+const { sendEventNotification } = require('../services/mailService');
+// 🔥 Nuevas utilidades compartidas
+const { withCache, invalidateCache } = require('../utils/cacheUtils');
+const { sendSuccess, sendError, sendNotFound, sendValidationError } = require('../utils/responseUtils');
+const { validateRequiredFields } = require('../utils/validationUtils');
 
-// Helper para validar fechas pasadas
+// =================================================================
+// 🛠️ HELPER: VALIDAR FECHAS PASADAS
+// =================================================================
 const isPastDate = (dateStr, timeStr) => {
+  // Combinamos fecha y hora (o 00:00 si no hay hora) para comparar
   const eventDate = new Date(`${dateStr}T${timeStr || '00:00:00'}`);
   const now = new Date();
+  // Retorna true si la fecha del evento es menor (anterior) a ahora
   return eventDate < now;
 };
 
-// 1. OBTENER EVENTOS
+// =================================================================
+// 1. LECTURA (GET)
+// =================================================================
 const getEvents = async (req, res) => {
   try {
-    const cachedEvents = await redisClient.get('all_events');
-    if (cachedEvents) return res.json(JSON.parse(cachedEvents));
+    // Usar wrapper de caché automático
+    const events = await withCache('all_events', async () => {
+      const query = `
+        SELECT e.*, l.name as location_name 
+        FROM events e 
+        JOIN locations l ON e.location_id = l.id
+        ORDER BY e.date DESC, e.time ASC
+      `;
+      const result = await pool.query(query);
+      return result.rows;
+    }, 3600);
 
+    sendSuccess(res, events);
+  } catch (err) {
+    sendError(res, err);
+  }
+};
+
+const getEventsByLocation = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Query que filtra eventos finalizados
     const query = `
       SELECT e.*, l.name as location_name 
       FROM events e 
       JOIN locations l ON e.location_id = l.id
-      ORDER BY e.date ASC
+      WHERE e.location_id = $1 
+        AND (
+          e.date > CURRENT_DATE 
+          OR (e.date = CURRENT_DATE AND (e.end_time::TIME > CURRENT_TIME OR e.end_time IS NULL))
+        )
+      ORDER BY e.date ASC, e.time ASC
     `;
-    const allEvents = await pool.query(query);
-    await redisClient.set('all_events', JSON.stringify(allEvents.rows), { EX: 3600 });
-    
-    res.json(allEvents.rows);
+
+    const result = await pool.query(query, [id]);
+
+    sendSuccess(res, result.rows);
   } catch (err) {
-    console.error(err);
-    res.status(500).send("Error del servidor");
+    sendError(res, err);
   }
 };
 
-// 2. CREAR EVENTO (AQUÍ AGREGAMOS EL CORREO) 🔥
+const getEventById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query("SELECT * FROM events WHERE id = $1", [id]);
+
+    if (result.rows.length === 0) {
+      return sendNotFound(res, 'Evento');
+    }
+
+    sendSuccess(res, result.rows[0]);
+  } catch (err) {
+    sendError(res, err);
+  }
+};
+
+// =================================================================
+// 2. CREAR EVENTO (POST)
+// =================================================================
 const createEvent = async (req, res) => {
   try {
     const { title, description, date, time, end_time, location_id } = req.body;
 
-    if (isPastDate(date, end_time || time)) {
-        return res.status(400).json({ error: "Fecha inválida (pasado)." });
+    // Validar campos requeridos
+    const validation = validateRequiredFields(req.body, ['title', 'date', 'location_id']);
+    if (!validation.isValid) {
+      return sendValidationError(res, validation.message);
     }
 
-    // A. Guardar en BD
+    // Validar que la fecha no sea pasada
+    const eventDateTime = new Date(`${date}T${time || '00:00:00'}`);
+    const now = new Date();
+
+    if (eventDateTime < now) {
+      return sendValidationError(res, 'No se pueden crear eventos con fechas pasadas');
+    }
+
+    // 1. Insertar evento
     const newEvent = await pool.query(
-      "INSERT INTO events (title, description, date, time, end_time, location_id) VALUES($1, $2, $3, $4, $5, $6) RETURNING *",
-      [title, description, date, time, end_time, location_id]
+      "INSERT INTO events (title, description, date, time, end_time, location_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
+      [title, description, date, time, end_time || null, location_id]
     );
+    const eventData = newEvent.rows[0];
 
-    // B. Invalidar caché y Notificar Socket
-    await redisClient.del('all_events');
-    req.io.emit('server:data_updated', { type: 'EVENT_ADDED', data: newEvent.rows[0] });
+    // 2. Invalidar caché
+    await invalidateCache('all_events');
 
-    // 🔥 C. ENVIAR CORREOS (Lógica Nueva) 🔥
-    // -----------------------------------------------------
-    // 1. Obtener correos de estudiantes
-    const usersResult = await pool.query("SELECT email FROM users WHERE role = 'student'");
-    const emails = usersResult.rows.map(u => u.email);
-
-    // 2. Obtener nombre del lugar (Join manual rápido)
-    const locResult = await pool.query("SELECT name FROM locations WHERE id = $1", [location_id]);
-    const locationName = locResult.rows[0] ? locResult.rows[0].name : "Campus UCE";
-
-    // 3. Enviar sin esperar (fire and forget)
-    if (emails.length > 0) {
-        sendEventNotification(emails, title, `${date} ${time}`, description, locationName)
-            .catch(err => console.error("❌ Error enviando emails:", err));
+    // 3. Notificar Socket (Mapa en vivo)
+    if (req.io) {
+      req.io.emit('server:new_data', { type: 'EVENT_CREATED', data: eventData });
     }
-    // -----------------------------------------------------
 
-    res.json(newEvent.rows[0]);
+    // 4. Enviar notificaciones por correo a TODOS los estudiantes
+    console.log('📬 [EMAIL] Iniciando proceso de notificación de evento...');
+
+    const locRes = await pool.query("SELECT name FROM locations WHERE id = $1", [location_id]);
+    const locName = locRes.rows[0]?.name || "Campus UCE";
+
+    const users = await pool.query(
+      "SELECT email FROM users WHERE role = 'student' AND is_verified = TRUE"
+    );
+    const emailList = users.rows.map(u => u.email);
+
+    console.log(`📬 [EMAIL] Encontrados ${emailList.length} estudiantes verificados`);
+
+    if (emailList.length > 0) {
+      console.log(`📧 Enviando notificación de evento a ${emailList.length} estudiantes...`);
+      sendEventNotification(
+        emailList,
+        eventData.title,
+        eventData.date.toString().split('T')[0],
+        eventData.description,
+        locName
+      ).catch(err => console.error("❌ Error envío correos:", err));
+    } else {
+      console.log(`⚠️ No hay estudiantes verificados para notificar`);
+    }
+
+    sendSuccess(res, eventData);
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    sendError(res, err);
   }
 };
 
-// 3. ACTUALIZAR EVENTO
+// =================================================================
+// 3. ACTUALIZAR EVENTO (PUT)
+// =================================================================
 const updateEvent = async (req, res) => {
   try {
     const { id } = req.params;
     const { title, description, date, time, end_time, location_id } = req.body;
 
+    // 1. Validar existencia
+    // Verificar que el evento existe
+    const check = await pool.query("SELECT id FROM events WHERE id = $1", [id]);
+    if (check.rows.length === 0) {
+      return sendNotFound(res, 'Evento');
+    }
+
+    // Actualizar evento
     const result = await pool.query(
       "UPDATE events SET title=$1, description=$2, date=$3, time=$4, end_time=$5, location_id=$6 WHERE id=$7 RETURNING *",
       [title, description, date, time, end_time, parseInt(location_id), id]
     );
 
-    if (result.rows.length === 0) return res.status(404).json({ error: "Evento no encontrado" });
+    // Invalidar caché y notificar
+    await invalidateCache('all_events');
+    if (req.io) {
+      req.io.emit('server:data_updated', { type: 'EVENT_UPDATED', data: result.rows[0] });
+    }
 
-    await redisClient.del('all_events');
-    req.io.emit('server:data_updated', { type: 'EVENT_UPDATED', data: result.rows[0] });
-
-    res.json(result.rows[0]);
-  } catch (err) { res.status(500).json({ error: "Error SQL: " + err.message }); }
+    sendSuccess(res, result.rows[0]);
+  } catch (err) {
+    sendError(res, err);
+  }
 };
 
-// 4. ELIMINAR EVENTO
 const deleteEvent = async (req, res) => {
   try {
-    await pool.query("DELETE FROM events WHERE id = $1", [req.params.id]);
-    
-    await redisClient.del('all_events');
-    req.io.emit('server:data_updated', { type: 'EVENT_DELETED', id: req.params.id });
-    
-    res.json({ message: "Eliminado" });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    const { id } = req.params;
+    const result = await pool.query("DELETE FROM events WHERE id = $1 RETURNING *", [id]);
+
+    if (result.rows.length === 0) {
+      return sendNotFound(res, 'Evento');
+    }
+
+    // Invalidar caché y notificar
+    await invalidateCache('all_events');
+    if (req.io) {
+      req.io.emit('server:data_updated', { type: 'EVENT_DELETED', id: id });
+    }
+
+    sendSuccess(res, { message: "Evento eliminado" });
+  } catch (err) {
+    sendError(res, err);
+  }
 };
 
-module.exports = { getEvents, createEvent, updateEvent, deleteEvent };
+module.exports = {
+  getEvents,
+  getEventsByLocation,
+  getEventById,
+  createEvent,
+  updateEvent,
+  deleteEvent
+};

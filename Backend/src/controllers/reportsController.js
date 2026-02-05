@@ -7,7 +7,7 @@ const fs = require('fs');
 const generateLogsReport = async (req, res) => {
   try {
     // 1. Consulta SQL ajustada a Hora Ecuador (UTC-5)
-    // Asumimos que la DB guarda en UTC. 'AT TIME ZONE' hace la magia.
+    // Filtramos logs de socket para mostrar solo acciones significativas
     const result = await pool.query(`
       SELECT 
         action, 
@@ -16,6 +16,7 @@ const generateLogsReport = async (req, res) => {
         ip_address, 
         TO_CHAR(timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'America/Guayaquil', 'YYYY-MM-DD HH24:MI:SS') as time 
       FROM system_logs 
+      WHERE action NOT IN ('SOCKET_CONNECT', 'SOCKET_DISCONNECT')
       ORDER BY timestamp DESC 
       LIMIT 100
     `);
@@ -36,35 +37,35 @@ const generateLogsReport = async (req, res) => {
 
     // Intentar cargar el logo si existe
     if (fs.existsSync(logoPath)) {
-        doc.image(logoPath, 50, 45, { width: 60 })
-           .moveDown();
+      doc.image(logoPath, 50, 45, { width: 60 })
+        .moveDown();
     }
 
     // Títulos Centrados (Alineados con el logo)
     doc.font('Helvetica-Bold').fontSize(16)
-       .text('UNIVERSIDAD CENTRAL DEL ECUADOR', { align: 'center' });
-    
+      .text('UNIVERSIDAD CENTRAL DEL ECUADOR', { align: 'center' });
+
     doc.fontSize(12)
-       .text('SISTEMA DE MAPA INTERACTIVO 3D', { align: 'center' });
-    
+      .text('SISTEMA DE MAPA INTERACTIVO 3D', { align: 'center' });
+
     doc.fontSize(10).font('Helvetica')
-       .text('Reporte Oficial de Actividad y Auditoría', { align: 'center' });
+      .text('Reporte Oficial de Actividad y Auditoría', { align: 'center' });
 
     doc.moveDown(1);
-    
+
     // Línea divisoria decorativa
     doc.moveTo(50, 115)
-       .lineTo(550, 115)
-       .strokeColor('#1e3a8a') // Azul UCE
-       .lineWidth(2)
-       .stroke();
+      .lineTo(550, 115)
+      .strokeColor('#1e3a8a') // Azul UCE
+      .lineWidth(2)
+      .stroke();
 
     // Información del Reporte
     doc.moveDown(1);
     doc.fontSize(9).fillColor('black');
     doc.text(`Generado por: ${req.user.email}`, 50, 130);
     doc.text(`Fecha de emisión: ${new Date().toLocaleString('es-EC', { timeZone: 'America/Guayaquil' })}`, 50, 145, { align: 'left' });
-    
+
     // --- TABLA DE DATOS ---
     const tableTop = 180;
     const colAction = 50;
@@ -73,10 +74,10 @@ const generateLogsReport = async (req, res) => {
 
     // Encabezados de Tabla
     doc.font('Helvetica-Bold').fontSize(10).fillColor('white');
-    
+
     // Fondo del encabezado de tabla
     doc.rect(50, tableTop - 5, 500, 20).fill('#1e3a8a'); // Fondo Azul
-    
+
     doc.fillColor('white');
     doc.text('ACCIÓN / DETALLE', colAction + 5, tableTop);
     doc.text('USUARIO', colUser, tableTop);
@@ -104,7 +105,7 @@ const generateLogsReport = async (req, res) => {
       doc.text(log.action, colAction + 5, yPosition, { width: 140, ellipsis: true });
       doc.text(log.user_email || 'Invitado', colUser, yPosition, { width: 190, ellipsis: true });
       doc.text(log.time, colTime, yPosition);
-      
+
       yPosition += 20;
     });
 
@@ -114,7 +115,7 @@ const generateLogsReport = async (req, res) => {
     doc.text('Documento generado automáticamente por el sistema. Uso interno.', 50, pageHeight - 50, { align: 'center', width: 500 });
 
     doc.end();
-    
+
     logger.info('REPORT_GENERATED_PDF', { user: req.user.email });
 
   } catch (err) {

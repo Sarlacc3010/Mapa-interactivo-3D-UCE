@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from "react"; 
+import React, { useState, useEffect } from "react";
 // UI Components
 import { Header } from "../Header";
 import { SearchPanel } from "../SearchPanel";
 import { BuildingInfoCard } from "../BuildingInfoCard";
-import { EventsModal } from "../events/EventsModal"; 
+import { EventsModal } from "../events/EventsModal";
 import { Instructions } from "../Controls";
 import { ThemeToggle } from "../ThemeToggle";
 
 // Calendar Modal
-import { MyAgendaModal } from "../events/MyAgendaModal"; 
-import { CalendarCheck } from "lucide-react"; 
+import { MyAgendaModal } from "../events/MyAgendaModal";
+import { CalendarCheck } from "lucide-react";
 
 // New Reusable UI Components
 import { ViewModeButton, WasdControlsHint, Crosshair } from "../ui/MapControls";
@@ -53,7 +53,7 @@ export function MapOverlay({
   useEffect(() => {
     if (autoOpenEvents && selectedLoc) {
       setShowEvents(true);
-      if (onAutoEventsOpened) onAutoEventsOpened(); 
+      if (onAutoEventsOpened) onAutoEventsOpened();
     }
   }, [autoOpenEvents, selectedLoc, onAutoEventsOpened]);
 
@@ -193,8 +193,8 @@ export function MapOverlay({
               </span>
             )}
 
-            {/* 🔥 BOTÓN MI AGENDA (Solo si no es admin) */}
-            {user?.role !== "admin" && (
+            {/* 🔥 BOTÓN MI AGENDA (Solo para estudiantes autenticados) */}
+            {user?.role === "student" && (
               <button
                 onClick={() => setShowMyAgenda(true)}
                 className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all text-xs font-bold
@@ -255,7 +255,7 @@ export function MapOverlay({
           />
 
           {/* 🔥 NUEVO MODAL DE AGENDA PERSONAL */}
-          <MyAgendaModal 
+          <MyAgendaModal
             isOpen={showMyAgenda}
             onClose={() => setShowMyAgenda(false)}
           />

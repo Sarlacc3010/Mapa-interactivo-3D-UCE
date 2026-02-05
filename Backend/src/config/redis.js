@@ -1,29 +1,29 @@
 const redis = require('redis');
+require('dotenv').config();
 
-// Variables de entorno o valores por defecto
-const REDIS_HOST = process.env.REDIS_HOST || 'localhost';
-const REDIS_PORT = process.env.REDIS_PORT || 6379;
+// Ajusta esto según tu docker-compose. Si tu servicio se llama 'redis_cache', usa ese host.
+const url = process.env.REDIS_URL || `redis://${process.env.REDIS_HOST || 'redis'}:${process.env.REDIS_PORT || 6379}`;
 
-const redisUrl = `redis://${REDIS_HOST}:${REDIS_PORT}`;
-
-console.log(`🔌 [REDIS CONFIG] Intentando conectar a: ${redisUrl}`);
+console.log(`🔌 [REDIS CONFIG] Configurado para: ${url}`);
 
 const client = redis.createClient({
-  url: redisUrl
+    url: url,
+    socket: {
+        reconnectStrategy: (retries) => {
+            if (retries > 20) return new Error('Redis connection retries exhausted');
+            return Math.min(retries * 100, 3000);
+        }
+    }
 });
 
-client.on('error', (err) => console.error('❌ [REDIS ERROR]:', err));
-client.on('connect', () => console.log('✅ [REDIS] Conectado exitosamente'));
+client.on('error', (err) => console.error('❌ [REDIS ERROR]:', err.message));
+client.on('connect', () => console.log('✅ [REDIS] Cliente conectado'));
 
-// Iniciamos conexión una sola vez aquí
-(async () => {
-  if (!client.isOpen) {
-    try {
-      await client.connect();
-    } catch (err) {
-      console.error('❌ Error fatal conectando a Redis:', err);
+const connectRedis = async () => {
+    if (!client.isOpen) {
+        await client.connect();
     }
-  }
-})();
+    return client;
+};
 
-module.exports = client;
+module.exports = { client, connectRedis };

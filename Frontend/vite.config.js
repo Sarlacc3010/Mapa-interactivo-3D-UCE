@@ -11,5 +11,23 @@ export default defineConfig({
     watch: {
       usePolling: true, // Crítico para que los cambios de código se reflejen en Docker (especialmente en Windows)
     }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Separar Three.js en su propio chunk (muy pesado ~600KB)
+          'three': ['three'],
+          // Separar React Query en su propio chunk
+          'react-query': ['@tanstack/react-query'],
+          // Separar Socket.IO en su propio chunk
+          'socket': ['socket.io-client'],
+          // Separar Lucide icons en su propio chunk
+          'icons': ['lucide-react'],
+        }
+      }
+    },
+    // Aumentar el límite de advertencia de chunk size
+    chunkSizeWarningLimit: 1000,
   }
 })
