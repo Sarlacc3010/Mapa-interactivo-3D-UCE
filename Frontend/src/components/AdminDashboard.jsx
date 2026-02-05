@@ -13,7 +13,7 @@ import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 
 export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDeleteEvent, onUpdateEvent }) {
-  const { theme } = useTheme(); 
+  const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState('events');
   const { locations } = useLocations();
   const [downloading, setDownloading] = useState(false);
@@ -22,14 +22,27 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
   const dashboardRef = useRef();
 
   useGSAP(() => {
-    // Original animations
-    gsap.from(".sidebar-anim", { x: -50, opacity: 0, duration: 0.6, ease: "power2.out" });
-    gsap.from(".header-anim", { y: -20, opacity: 0, duration: 0.6, delay: 0.2, ease: "power2.out" });
-    gsap.from(".content-anim", { y: 20, opacity: 0, duration: 0.6, delay: 0.3, ease: "power2.out" });
-    
+    // Check if elements exist before animating (prevents warnings with lazy loading)
+    const sidebar = document.querySelector(".sidebar-anim");
+    const header = document.querySelector(".header-anim");
+    const content = document.querySelector(".content-anim");
+
+    if (sidebar) {
+      gsap.from(".sidebar-anim", { x: -50, opacity: 0, duration: 0.6, ease: "power2.out" });
+    }
+    if (header) {
+      gsap.from(".header-anim", { y: -20, opacity: 0, duration: 0.6, delay: 0.2, ease: "power2.out" });
+    }
+    if (content) {
+      gsap.from(".content-anim", { y: 20, opacity: 0, duration: 0.6, delay: 0.3, ease: "power2.out" });
+    }
+
     // Neon mode extra animations
     if (theme === 'dark') {
-      gsap.from(".fade-in-up", { y: 20, opacity: 0, duration: 0.5, stagger: 0.1, ease: "power2.out" });
+      const fadeElements = document.querySelectorAll(".fade-in-up");
+      if (fadeElements.length > 0) {
+        gsap.from(".fade-in-up", { y: 20, opacity: 0, duration: 0.5, stagger: 0.1, ease: "power2.out" });
+      }
     }
   }, { scope: dashboardRef, dependencies: [theme] });
 
@@ -43,16 +56,16 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
 
       // Create blob URL
       const url = window.URL.createObjectURL(new Blob([response.data]));
-      
+
       // Trigger download
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `reporte_sistema_${new Date().toISOString().slice(0,10)}.pdf`);
-      
+      link.setAttribute('download', `reporte_sistema_${new Date().toISOString().slice(0, 10)}.pdf`);
+
       document.body.appendChild(link);
       link.click();
       link.parentNode.removeChild(link);
-      
+
     } catch (error) {
       console.error("Error downloading report", error);
       alert("No se pudo generar el reporte. Intenta más tarde.");
@@ -67,13 +80,13 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
   if (theme === 'dark') {
     return (
       <div ref={dashboardRef} className="flex h-screen bg-slate-950 font-sans overflow-hidden text-slate-200">
-        
+
         {/* Fixed Sidebar */}
-        <Sidebar 
-          activeTab={activeTab} 
-          setActiveTab={setActiveTab} 
-          onViewMap={onViewMap} 
-          onLogout={onLogout} 
+        <Sidebar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          onViewMap={onViewMap}
+          onLogout={onLogout}
         />
 
         <main className="flex-1 flex flex-col overflow-hidden relative">
@@ -82,7 +95,7 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
             <h2 className="text-xl font-bold text-white capitalize tracking-tight fade-in-up">
               {activeTab === 'dashboard' ? 'Resumen General' : 'Gestión de Eventos'}
             </h2>
-            
+
             <div className="flex items-center gap-4 fade-in-up">
               {/* PDF REPORT BUTTON (NEON) */}
               {activeTab === 'dashboard' && (
@@ -101,13 +114,13 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
                 </button>
               )}
 
-              <ThemeToggle /> 
-              
+              <ThemeToggle />
+
               <span className="text-xs font-mono text-cyan-400 bg-cyan-950/50 px-2 py-1 rounded border border-cyan-500/20">
-                  ADMIN_ACCESS
+                ADMIN_ACCESS
               </span>
               <div className="w-9 h-9 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center font-bold text-slate-400">
-                  AD
+                AD
               </div>
             </div>
           </header>
@@ -119,12 +132,12 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
             )}
 
             {activeTab === 'events' && (
-              <EventsTab 
-                events={events} 
-                locations={locations} 
-                onAddEvent={onAddEvent} 
-                onUpdateEvent={onUpdateEvent} 
-                onDeleteEvent={onDeleteEvent} 
+              <EventsTab
+                events={events}
+                locations={locations}
+                onAddEvent={onAddEvent}
+                onUpdateEvent={onUpdateEvent}
+                onDeleteEvent={onDeleteEvent}
               />
             )}
           </div>
@@ -138,15 +151,15 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
   // ===========================================================================
   return (
     <div ref={dashboardRef} className="flex h-screen bg-gray-50 font-sans overflow-hidden">
-      
+
       {/* Sidebar */}
       <div className="sidebar-anim h-full">
-          <Sidebar 
-            activeTab={activeTab} 
-            setActiveTab={setActiveTab} 
-            onViewMap={onViewMap} 
-            onLogout={onLogout} 
-          />
+        <Sidebar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          onViewMap={onViewMap}
+          onLogout={onLogout}
+        />
       </div>
 
       <main className="flex-1 flex flex-col overflow-hidden relative">
@@ -154,24 +167,24 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
           <h2 className="text-xl font-bold text-gray-800 capitalize">
             {activeTab === 'dashboard' ? 'Resumen General' : 'Gestión de Eventos'}
           </h2>
-          
+
           <div className="flex items-center gap-4">
-            
+
             {/* PDF REPORT BUTTON (LIGHT) */}
             {activeTab === 'dashboard' && (
-                <button
-                  onClick={handleDownloadReport}
-                  disabled={downloading}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg hover:bg-blue-100 transition-all text-xs font-bold disabled:opacity-50"
-                >
-                  {downloading ? (
-                    <span className="animate-pulse">Generando...</span>
-                  ) : (
-                    <>
-                      <FileText size={14} /> Exportar Reporte
-                    </>
-                  )}
-                </button>
+              <button
+                onClick={handleDownloadReport}
+                disabled={downloading}
+                className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg hover:bg-blue-100 transition-all text-xs font-bold disabled:opacity-50"
+              >
+                {downloading ? (
+                  <span className="animate-pulse">Generando...</span>
+                ) : (
+                  <>
+                    <FileText size={14} /> Exportar Reporte
+                  </>
+                )}
+              </button>
             )}
 
             <ThemeToggle />
@@ -186,12 +199,12 @@ export function AdminDashboard({ onLogout, onViewMap, events, onAddEvent, onDele
           )}
 
           {activeTab === 'events' && (
-            <EventsTab 
-              events={events} 
-              locations={locations} 
-              onAddEvent={onAddEvent} 
-              onUpdateEvent={onUpdateEvent} 
-              onDeleteEvent={onDeleteEvent} 
+            <EventsTab
+              events={events}
+              locations={locations}
+              onAddEvent={onAddEvent}
+              onUpdateEvent={onUpdateEvent}
+              onDeleteEvent={onDeleteEvent}
             />
           )}
         </div>

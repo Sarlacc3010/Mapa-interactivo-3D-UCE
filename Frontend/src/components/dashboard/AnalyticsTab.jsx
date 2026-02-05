@@ -9,7 +9,7 @@ import { useGSAP } from '@gsap/react';
 import { useAnalytics } from "../../hooks/useAnalytics";
 import { useTheme } from "../../context/ThemeContext";
 
-const TIMEZONE_OFFSET = -5; 
+const TIMEZONE_OFFSET = -5;
 
 export function AnalyticsTab({ locations }) {
   const { theme } = useTheme();
@@ -18,12 +18,19 @@ export function AnalyticsTab({ locations }) {
 
   useGSAP(() => {
     if (!loading) {
-      gsap.fromTo(".animate-item", 
-        { y: 30, opacity: 0 }, 
-        { y: 0, opacity: 1, duration: 0.6, stagger: 0.1, ease: "power2.out" }
-      );
+      // Delay animations slightly to ensure containers have dimensions
+      const timer = setTimeout(() => {
+        const items = document.querySelectorAll(".animate-item");
+        if (items.length > 0) {
+          gsap.fromTo(".animate-item",
+            { y: 30, opacity: 0 },
+            { y: 0, opacity: 1, duration: 0.6, stagger: 0.1, ease: "power2.out" }
+          );
+        }
+      }, 100);
+      return () => clearTimeout(timer);
     }
-  }, { scope: containerRef, dependencies: [loading] }); 
+  }, { scope: containerRef, dependencies: [loading] });
 
   // Lógica de datos original intacta
   const trafficData = useMemo(() => {
@@ -58,10 +65,10 @@ export function AnalyticsTab({ locations }) {
 
   if (loading) {
     return (
-        <div className="h-96 flex flex-col items-center justify-center gap-4">
-            <div className={`w-12 h-12 border-4 rounded-full animate-spin ${theme === 'dark' ? 'border-cyan-500/30 border-t-cyan-400' : 'border-blue-500 border-t-transparent'}`}></div>
-            <p className={`text-sm font-mono animate-pulse ${theme === 'dark' ? 'text-cyan-400' : 'text-gray-500'}`}>CARGANDO...</p>
-        </div>
+      <div className="h-96 flex flex-col items-center justify-center gap-4">
+        <div className={`w-12 h-12 border-4 rounded-full animate-spin ${theme === 'dark' ? 'border-cyan-500/30 border-t-cyan-400' : 'border-blue-500 border-t-transparent'}`}></div>
+        <p className={`text-sm font-mono animate-pulse ${theme === 'dark' ? 'text-cyan-400' : 'text-gray-500'}`}>CARGANDO...</p>
+      </div>
     );
   }
 
@@ -79,30 +86,30 @@ export function AnalyticsTab({ locations }) {
         </div>
         <div className="animate-item bg-slate-900/50 backdrop-blur-md p-6 rounded-2xl border border-white/5 shadow-xl h-80 flex flex-col relative overflow-hidden">
           <div className="flex justify-between items-center mb-4 z-10 text-slate-100">
-              <h3 className="font-bold flex items-center gap-2"><TrendingUp size={18} className="text-cyan-400" /> Tráfico en Tiempo Real</h3>
-              <span className="text-[10px] font-mono text-slate-400 bg-slate-800/50 px-2 py-1 rounded border border-white/5">UTC{TIMEZONE_OFFSET}</span>
+            <h3 className="font-bold flex items-center gap-2"><TrendingUp size={18} className="text-cyan-400" /> Tráfico en Tiempo Real</h3>
+            <span className="text-[10px] font-mono text-slate-400 bg-slate-800/50 px-2 py-1 rounded border border-white/5">UTC{TIMEZONE_OFFSET}</span>
           </div>
           <div className="flex-1 w-full h-full min-h-[200px] z-10">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={trafficData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <defs><linearGradient id="colorVisitas" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#22d3ee" stopOpacity={0.4} /><stop offset="95%" stopColor="#22d3ee" stopOpacity={0} /></linearGradient></defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" />
-                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', color: '#f8fafc' }} itemStyle={{ color: '#22d3ee' }} />
-                  <Area type="monotone" dataKey="visitas" stroke="#22d3ee" strokeWidth={3} fillOpacity={1} fill="url(#colorVisitas)" />
-                </AreaChart>
-              </ResponsiveContainer>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={trafficData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <defs><linearGradient id="colorVisitas" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#22d3ee" stopOpacity={0.4} /><stop offset="95%" stopColor="#22d3ee" stopOpacity={0} /></linearGradient></defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', color: '#f8fafc' }} itemStyle={{ color: '#22d3ee' }} />
+                <Area type="monotone" dataKey="visitas" stroke="#22d3ee" strokeWidth={3} fillOpacity={1} fill="url(#colorVisitas)" />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="animate-item bg-slate-900/50 backdrop-blur-md p-6 rounded-2xl border border-white/5 shadow-xl h-96 flex flex-col text-slate-100">
             <h3 className="font-bold mb-6 flex items-center gap-2"><MapPin size={18} className="text-pink-400" /> Edficios Más Visitados</h3>
-            <div className="flex-1 w-full min-h-0"><ResponsiveContainer width="100%" height="100%"><BarChart data={formattedTopLocations} layout="vertical"><XAxis type="number" hide /><YAxis dataKey="name" type="category" width={110} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false}/><Tooltip cursor={{ fill: '#1e293b' }} contentStyle={{ backgroundColor: '#0f172a', border: 'none', color: '#fff' }} /><Bar dataKey="visits" fill="#f472b6" radius={[0, 4, 4, 0]} barSize={20} /></BarChart></ResponsiveContainer></div>
+            <div className="flex-1 w-full min-h-[200px]"><ResponsiveContainer width="100%" height="100%"><BarChart data={formattedTopLocations} layout="vertical"><XAxis type="number" hide /><YAxis dataKey="name" type="category" width={110} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} /><Tooltip cursor={{ fill: '#1e293b' }} contentStyle={{ backgroundColor: '#0f172a', border: 'none', color: '#fff' }} /><Bar dataKey="visits" fill="#f472b6" radius={[0, 4, 4, 0]} barSize={20} /></BarChart></ResponsiveContainer></div>
           </div>
           <div className="animate-item bg-slate-900/50 backdrop-blur-md p-6 rounded-2xl border border-white/5 shadow-xl h-96 flex flex-col text-slate-100">
-             <h3 className="font-bold mb-4 flex items-center gap-2"><TrendingUp size={18} className="text-purple-400" /> Distribución</h3>
-             <div className="flex-1 w-full min-h-0"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={statsCategorias} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">{statsCategorias.map((entry, index) => (<Cell key={`cell-${index}`} fill={NEON_COLORS[index % NEON_COLORS.length]} />))}</Pie><Tooltip contentStyle={{ backgroundColor: '#0f172a', border: 'none', color: '#fff' }} /><Legend wrapperStyle={{ fontSize: '11px', color: '#94a3b8' }} /></PieChart></ResponsiveContainer></div>
+            <h3 className="font-bold mb-4 flex items-center gap-2"><TrendingUp size={18} className="text-purple-400" /> Distribución</h3>
+            <div className="flex-1 w-full min-h-[200px]"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={statsCategorias} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">{statsCategorias.map((entry, index) => (<Cell key={`cell-${index}`} fill={NEON_COLORS[index % NEON_COLORS.length]} />))}</Pie><Tooltip contentStyle={{ backgroundColor: '#0f172a', border: 'none', color: '#fff' }} /><Legend wrapperStyle={{ fontSize: '11px', color: '#94a3b8' }} /></PieChart></ResponsiveContainer></div>
           </div>
         </div>
       </div>
@@ -123,8 +130,8 @@ export function AnalyticsTab({ locations }) {
 
       <div className="animate-item bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-80 flex flex-col">
         <div className="flex justify-between items-center mb-2 text-gray-800">
-            <h3 className="font-bold flex items-center gap-2"><TrendingUp size={18} className="text-purple-600" /> Actividad Diaria</h3>
-            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded border border-gray-200">Hora Local (UTC{TIMEZONE_OFFSET})</span>
+          <h3 className="font-bold flex items-center gap-2"><TrendingUp size={18} className="text-purple-600" /> Actividad Diaria</h3>
+          <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded border border-gray-200">Hora Local (UTC{TIMEZONE_OFFSET})</span>
         </div>
         <div className="flex-1 w-full min-h-[200px]">
           <ResponsiveContainer width="100%" height="100%">
@@ -134,11 +141,11 @@ export function AnalyticsTab({ locations }) {
               <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#6b7280' }} />
               <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} allowDecimals={false} axisLine={false} tickLine={false} />
               {/* Tooltip con colores forzados para Modo Claro */}
-              <Tooltip 
-                contentStyle={{ borderRadius: '8px', border: 'none', backgroundColor: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} 
-                labelStyle={{ color: '#111827', fontWeight: 'bold' }} 
-                itemStyle={{ color: '#1e3a8a' }} 
-                formatter={(value) => [`${value} visitas`, "Tráfico"]} 
+              <Tooltip
+                contentStyle={{ borderRadius: '8px', border: 'none', backgroundColor: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                labelStyle={{ color: '#111827', fontWeight: 'bold' }}
+                itemStyle={{ color: '#1e3a8a' }}
+                formatter={(value) => [`${value} visitas`, "Tráfico"]}
               />
               <Area type="monotone" dataKey="visitas" stroke="#8b5cf6" strokeWidth={3} fillOpacity={1} fill="url(#colorVisLight)" />
             </AreaChart>
@@ -149,33 +156,33 @@ export function AnalyticsTab({ locations }) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="animate-item bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-96 flex flex-col text-gray-800">
           <h3 className="font-bold mb-4 flex items-center gap-2 shrink-0"><MapPin size={18} className="text-blue-600" /> Lugares Más Visitados</h3>
-          <div className="flex-1 min-h-0">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="flex-1 min-h-[200px]">
+            <ResponsiveContainer width="100%" aspect={1.5}>
               <BarChart data={formattedTopLocations} layout="vertical" margin={{ left: 0, right: 20 }}>
-                  <XAxis type="number" hide />
-                  <YAxis dataKey="name" type="category" width={110} tick={{ fontSize: 10, fill: '#374151', fontWeight: 600 }} axisLine={false} tickLine={false}/>
-                  <Tooltip 
-                    cursor={{ fill: '#f3f4f6' }} 
-                    contentStyle={{ borderRadius: '8px', border: 'none', backgroundColor: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} 
-                    labelStyle={{ color: '#111827', fontWeight: 'bold' }} 
-                    itemStyle={{ color: '#D9232D' }} 
-                  />
-                  <Bar dataKey="visits" fill="#1e3a8a" radius={[0, 4, 4, 0]} barSize={24} name="Visitas" />
+                <XAxis type="number" hide />
+                <YAxis dataKey="name" type="category" width={110} tick={{ fontSize: 10, fill: '#374151', fontWeight: 600 }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  cursor={{ fill: '#f3f4f6' }}
+                  contentStyle={{ borderRadius: '8px', border: 'none', backgroundColor: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                  labelStyle={{ color: '#111827', fontWeight: 'bold' }}
+                  itemStyle={{ color: '#D9232D' }}
+                />
+                <Bar dataKey="visits" fill="#1e3a8a" radius={[0, 4, 4, 0]} barSize={24} name="Visitas" />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
         <div className="animate-item bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-96 flex flex-col text-gray-800">
           <h3 className="font-bold mb-4 flex items-center gap-2 shrink-0"><TrendingUp size={18} className="text-green-600" /> Distribución de Infraestructura</h3>
-          <div className="flex-1 min-h-0">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="flex-1 min-h-[200px]">
+            <ResponsiveContainer width="100%" aspect={1.2}>
               <PieChart>
                 <Pie data={statsCategorias} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" nameKey="name">
                   {statsCategorias.map((entry, index) => (<Cell key={`cell-${index}`} fill={LIGHT_COLORS[index % LIGHT_COLORS.length]} />))}
                 </Pie>
-                <Tooltip 
-                  contentStyle={{ borderRadius: '8px', border: 'none', backgroundColor: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} 
-                  labelStyle={{ color: '#111827', fontWeight: 'bold' }} 
+                <Tooltip
+                  contentStyle={{ borderRadius: '8px', border: 'none', backgroundColor: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                  labelStyle={{ color: '#111827', fontWeight: 'bold' }}
                 />
                 <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '10px', color: '#4b5563' }} />
               </PieChart>

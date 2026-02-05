@@ -39,6 +39,9 @@ export function Scene3D({
     { name: "backward", keys: ["ArrowDown", "s", "S"] },
     { name: "left", keys: ["ArrowLeft", "a", "A"] },
     { name: "right", keys: ["ArrowRight", "d", "D"] },
+    { name: "sprint", keys: ["Shift"] },
+    { name: "crouch", keys: ["Control"] },
+    { name: "jump", keys: [" "] }, // Space key
   ];
 
   return (
@@ -79,10 +82,14 @@ export function Scene3D({
                   makeDefault
                   minPolarAngle={0}
                   maxPolarAngle={Math.PI / 2.1}
-                  minDistance={50}
-                  maxDistance={150}
+                  minDistance={30}
+                  maxDistance={200}
                   enableDamping={true}
-                  dampingFactor={0.05}
+                  dampingFactor={0.08}
+                  enablePan={true}
+                  panSpeed={0.8}
+                  zoomSpeed={1.2}
+                  rotateSpeed={0.5}
                 />
               )}
             </>
