@@ -11,7 +11,9 @@ export const SocketProvider = ({ children }) => {
 
   useEffect(() => {
     // 1. Conectar al Backend
-    const newSocket = io('http://localhost:5000', {
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const socketUrl = isLocal ? 'http://localhost:5000' : '/';
+    const newSocket = io(socketUrl, {
       withCredentials: true,
       transports: ['polling', 'websocket'], // Polling primero, luego upgrade a websocket
       reconnection: true,

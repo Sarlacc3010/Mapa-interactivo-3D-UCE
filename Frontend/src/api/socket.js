@@ -1,7 +1,10 @@
 import { io } from 'socket.io-client';
 
 // Configuración del socket client
-const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+// En producción (AWS) usamos la ruta relativa '/' para que pase por Nginx
+// En local usamos el puerto 5000 directo
+const SOCKET_URL = isLocal ? 'http://localhost:5000' : '/';
 
 // Crear instancia de socket
 export const socket = io(SOCKET_URL, {

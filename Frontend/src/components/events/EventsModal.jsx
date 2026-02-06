@@ -29,7 +29,8 @@ export function EventsModal({ isOpen, onClose, location }) {
     if (isOpen && location) {
       setLoading(true);
 
-      const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const API_BASE = isLocal ? 'http://localhost:5000' : '';
 
       // 1. Cargar Eventos de la Ubicación
       const fetchEvents = fetch(`${API_BASE}/api/events/location/${location.id}`)
@@ -54,7 +55,8 @@ export function EventsModal({ isOpen, onClose, location }) {
 
   // 🔥 FUNCIÓN PARA GUARDAR/BORRAR
   const handleToggleEvent = async (eventId) => {
-    const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const API_BASE = isLocal ? 'http://localhost:5000' : '';
 
     // Optimismo UI: Cambiamos el estado visualmente antes de que responda el servidor
     const isAlreadySaved = savedEventIds.includes(eventId);

@@ -39,7 +39,9 @@ export function EventsTab({ events, locations, onAddEvent, onUpdateEvent, onDele
     setIsSubmitting(true);
     setErrorMessage("");
     try {
-      const url = editingId ? `http://localhost:5000/api/events/${editingId}` : 'http://localhost:5000/api/events';
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const API_BASE = isLocal ? 'http://localhost:5000' : '';
+      const url = editingId ? `${API_BASE}/api/events/${editingId}` : `${API_BASE}/api/events`;
       const method = editingId ? 'PUT' : 'POST';
       const res = await fetch(url, {
         method,
@@ -69,7 +71,9 @@ export function EventsTab({ events, locations, onAddEvent, onUpdateEvent, onDele
 
   const handleDelete = async (id) => {
     if (!confirm("¿Eliminar evento?")) return;
-    const res = await fetch(`http://localhost:5000/api/events/${id}`, { method: 'DELETE', credentials: 'include' });
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const API_BASE = isLocal ? 'http://localhost:5000' : '';
+    const res = await fetch(`${API_BASE}/api/events/${id}`, { method: 'DELETE', credentials: 'include' });
     if (res.ok) onDeleteEvent(id);
   };
 

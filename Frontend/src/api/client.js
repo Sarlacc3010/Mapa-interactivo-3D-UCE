@@ -1,8 +1,9 @@
 // Frontend/src/api/client.js
 import axios from 'axios';
 
+const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: isLocal ? 'http://localhost:5000/api' : '/api',
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
