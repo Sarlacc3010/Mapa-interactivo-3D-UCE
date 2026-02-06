@@ -1,21 +1,21 @@
 const getImageUrl = (filename) => {
   if (!filename) return null;
-  
-  // Si por error guardamos una URL completa (http...), la devolvemos tal cual
+
+  // If we accidentally saved a full URL (http...), return it as is
   if (filename.startsWith('http')) {
     return filename;
   }
 
-  // Obtenemos el prefijo del .env
+  // Get prefix from .env
   const prefix = process.env.STORAGE_PUBLIC_URL_PREFIX;
-  
-  if (!prefix) return filename; // Fallback si falta la variable
 
-  // Limpieza de barras duplicadas por si acaso
+  if (!prefix) return filename; // Fallback if variable is missing
+
+  // Clean duplicate slashes just in case
   const cleanPrefix = prefix.endsWith('/') ? prefix.slice(0, -1) : prefix;
   const cleanFilename = filename.startsWith('/') ? filename.slice(1) : filename;
 
-  // Retorna: https://f004.../tu-bucket/ingenieria.jpg
+  // Returns: https://f004.../your-bucket/engineering.jpg
   return `${cleanPrefix}/${cleanFilename}`;
 };
 

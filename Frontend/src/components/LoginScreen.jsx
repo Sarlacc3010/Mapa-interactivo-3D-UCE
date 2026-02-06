@@ -91,15 +91,15 @@ export function LoginScreen() {
         alert(data.message);
         setIsRegistering(false);
       } else {
-        // ✅ LOGIN EXITOSO
-        // FIX: A veces el endpoint /login no devuelve el nombre completo.
-        // Hacemos una llamada extra a /profile para garantizar que tenemos todos los datos (nombre, rol, facultad).
+        // LOGIN SUCCESSFUL
+        // FIX: Sometimes /login endpoint does not return full name.
+        // Make extra call to /profile to ensure full data (name, role, faculty).
         try {
           const profileResponse = await api.get('/profile');
-          login(profileResponse.data.user); // Guardamos el usuario COMPLETO
+          login(profileResponse.data.user); // Save COMPLETE user
         } catch (profileError) {
           console.warn("No se pudo cargar el perfil completo, usando datos básicos del login", profileError);
-          login(data.user); // Fallback por si falla /profile
+          login(data.user); // Fallback if /profile fails
         }
       }
     } catch (err) {

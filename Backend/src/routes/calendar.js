@@ -3,9 +3,9 @@ const router = express.Router();
 const pool = require('../config/db');
 const authMiddleware = require('../middlewares/authMiddleware');
 
-console.log("📂 Cargando rutas de CALENDARIO..."); // <--- ESTO DEBE SALIR EN CONSOLA
+console.log("[CALENDAR] Loading routes...");
 
-// 1. SUSCRIBIRSE/DESUSCRIBIRSE (Toggle)
+// 1. SUBSCRIBE/UNSUBSCRIBE (Toggle)
 router.post('/toggle', authMiddleware, async (req, res) => {
   const { event_id } = req.body;
   const user_id = req.user.id;
@@ -24,7 +24,7 @@ router.post('/toggle', authMiddleware, async (req, res) => {
   }
 });
 
-// 2. OBTENER IDs (Para pintar botones)
+// 2. GET IDs (For button states)
 router.get('/my-subscriptions', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query("SELECT event_id FROM event_subscriptions WHERE user_id = $1", [req.user.id]);
@@ -35,7 +35,7 @@ router.get('/my-subscriptions', authMiddleware, async (req, res) => {
   }
 });
 
-// 3. OBTENER DETALLES (Para el Modal)
+// 3. GET DETAILS (For Modal)
 router.get('/my-events', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(`

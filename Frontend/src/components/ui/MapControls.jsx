@@ -13,24 +13,22 @@ export function ViewModeButton({ isFpsMode, isTransitioning, onClick }) {
         relative group flex items-center gap-3 px-6 py-4 rounded-2xl font-bold transition-all duration-500 transform hover:scale-105 active:scale-95 border
         bg-white text-gray-700 border-gray-200 shadow-xl hover:bg-gray-50
         dark:bg-slate-900/80 
-        ${
-          isFpsMode
-            ? "dark:border-red-500/50 dark:text-red-400 dark:shadow-[0_0_20px_rgba(220,38,38,0.4)] dark:hover:shadow-[0_0_30px_rgba(220,38,38,0.6)]"
-            : "dark:border-cyan-500/50 dark:text-cyan-400 dark:shadow-[0_0_20px_rgba(6,182,212,0.4)] dark:hover:shadow-[0_0_30px_rgba(6,182,212,0.6)]"
+        ${isFpsMode
+          ? "dark:border-red-500/50 dark:text-red-400 dark:shadow-[0_0_20px_rgba(220,38,38,0.4)] dark:hover:shadow-[0_0_30px_rgba(220,38,38,0.6)]"
+          : "dark:border-cyan-500/50 dark:text-cyan-400 dark:shadow-[0_0_20px_rgba(6,182,212,0.4)] dark:hover:shadow-[0_0_30px_rgba(6,182,212,0.6)]"
         }
         ${isTransitioning ? "opacity-50 cursor-wait grayscale" : ""}
       `}
     >
       {/* Background Glow Effect */}
       <div
-        className={`hidden dark:block absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-20 transition-opacity duration-500 ${
-          isFpsMode ? "bg-red-500" : "bg-cyan-500"
-        }`}
+        className={`hidden dark:block absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-20 transition-opacity duration-500 ${isFpsMode ? "bg-red-500" : "bg-cyan-500"
+          }`}
       ></div>
 
       {/* Icon Switch */}
       {isFpsMode ? <Footprints size={24} /> : <Plane size={24} />}
-      
+
       <span className="tracking-wider uppercase text-xs">
         {isFpsMode ? "Modo Caminar" : "Vista Aérea"}
       </span>

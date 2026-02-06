@@ -1,13 +1,13 @@
 /**
- * Utilidades para estandarizar respuestas HTTP
+ * Utilities to standardize HTTP responses
  */
 
 /**
- * Envía una respuesta exitosa
- * @param {Object} res - Objeto response de Express
- * @param {any} data - Datos a enviar
- * @param {string} message - Mensaje opcional
- * @param {number} statusCode - Código HTTP (default: 200)
+ * Sends a success response
+ * @param {Object} res - Express response object
+ * @param {any} data - Data to send
+ * @param {string} message - Optional message
+ * @param {number} statusCode - HTTP status code (default: 200)
  */
 function sendSuccess(res, data, message = null, statusCode = 200) {
     const response = message
@@ -18,15 +18,15 @@ function sendSuccess(res, data, message = null, statusCode = 200) {
 }
 
 /**
- * Envía una respuesta de error
- * @param {Object} res - Objeto response de Express
- * @param {string|Error} error - Mensaje de error o objeto Error
- * @param {number} statusCode - Código HTTP (default: 500)
+ * Sends an error response
+ * @param {Object} res - Express response object
+ * @param {string|Error} error - Error message or Error object
+ * @param {number} statusCode - HTTP status code (default: 500)
  */
 function sendError(res, error, statusCode = 500) {
     const errorMessage = error instanceof Error ? error.message : error;
 
-    console.error(`❌ Error [${statusCode}]:`, errorMessage);
+    console.error(`Error [${statusCode}]:`, errorMessage);
 
     return res.status(statusCode).json({
         success: false,
@@ -35,26 +35,26 @@ function sendError(res, error, statusCode = 500) {
 }
 
 /**
- * Envía una respuesta de recurso no encontrado
- * @param {Object} res - Objeto response de Express
- * @param {string} resource - Nombre del recurso no encontrado
+ * Sends a resource not found response
+ * @param {Object} res - Express response object
+ * @param {string} resource - Name of the not found resource
  */
 function sendNotFound(res, resource = 'Recurso') {
     return res.status(404).json({
         success: false,
-        error: `${resource} no encontrado`
+        error: `${resource} not found`
     });
 }
 
 /**
- * Envía una respuesta de error de validación
- * @param {Object} res - Objeto response de Express
- * @param {string|Object} errors - Errores de validación
+ * Sends a validation error response
+ * @param {Object} res - Express response object
+ * @param {string|Object} errors - Validation errors
  */
 function sendValidationError(res, errors) {
     const errorMessage = typeof errors === 'string'
         ? errors
-        : 'Errores de validación';
+        : 'Validation errors';
 
     return res.status(400).json({
         success: false,
@@ -64,21 +64,21 @@ function sendValidationError(res, errors) {
 }
 
 /**
- * Envía una respuesta de creación exitosa
- * @param {Object} res - Objeto response de Express
- * @param {any} data - Datos del recurso creado
- * @param {string} message - Mensaje opcional
+ * Sends a creation success response
+ * @param {Object} res - Express response object
+ * @param {any} data - Created resource data
+ * @param {string} message - Optional message
  */
-function sendCreated(res, data, message = 'Recurso creado exitosamente') {
+function sendCreated(res, data, message = 'Resource created successfully') {
     return sendSuccess(res, data, message, 201);
 }
 
 /**
- * Envía una respuesta de eliminación exitosa
- * @param {Object} res - Objeto response de Express
- * @param {string} message - Mensaje de confirmación
+ * Sends a deletion success response
+ * @param {Object} res - Express response object
+ * @param {string} message - Confirmation message
  */
-function sendDeleted(res, message = 'Recurso eliminado exitosamente') {
+function sendDeleted(res, message = 'Resource deleted successfully') {
     return res.status(200).json({
         success: true,
         message

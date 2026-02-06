@@ -9,70 +9,70 @@ const fs = require('fs');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const compression = require('compression'); // 🚀 Compresión gzip
+const compression = require('compression'); // Gzip compression
 require('dotenv').config();
 
-// CONFIGURACIONES
+// CONFIGURATIONS
 const pool = require('./src/config/db');
-const { connectRedis } = require('./src/config/redis'); // 🔥 Importamos la función de conexión
+const { connectRedis } = require('./src/config/redis'); // Import connection function
 const { logger } = require('./src/utils/logger');
 require('./src/config/passport');
 
-// SERVICIOS
+// SERVICES
 const { sendVerificationEmail } = require('./src/services/mailService');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 const SECRET_KEY = process.env.JWT_SECRET;
 
-// MIDDLEWARES GLOBALES
+// GLOBAL MIDDLEWARE
 app.use(cors({
     origin: ['http://localhost', 'http://localhost:5173', 'http://127.0.0.1:5173'],
     credentials: true
 }));
 app.use(express.json());
 
-// 🚀 COMPRESIÓN GZIP: Reduce el tamaño de las respuestas en 60-80%
+// GZIP COMPRESSION: Reduces response size by 60-80%
 app.use(compression({
     filter: (req, res) => {
-        // No comprimir si el cliente lo solicita
+        // Do not compress if client requests it
         if (req.headers['x-no-compression']) {
             return false;
         }
-        // Comprimir todo lo demás
+        // Compress everything else
         return compression.filter(req, res);
     },
-    level: 6, // Balance entre velocidad y compresión (1-9, default: 6)
-    threshold: 1024, // Solo comprimir respuestas > 1KB
+    level: 6, // Balance between speed and compression (1-9, default: 6)
+    threshold: 1024, // Only compress responses > 1KB
 }));
 
 app.use(cookieParser());
 app.use(passport.initialize());
 
-// ARCHIVOS ESTÁTICOS
+// STATIC FILES
 const uploadDir = path.join(__dirname, 'public', 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 app.use('/uploads', express.static(uploadDir));
 
 // ==========================================
-// 🔥 ARRANQUE SEGURO DEL SERVIDOR
+// SAFE SERVER STARTUP
 // ==========================================
 const startServer = async () => {
     try {
-        // 1. Verificar PostgreSQL
+        // 1. Verify PostgreSQL
         await pool.query('SELECT 1');
         console.log("✅ [DB] PostgreSQL conectado");
 
-        // 2. Conectar Redis (Esperamos a que termine antes de seguir)
+        // 2. Connect Redis (Wait for completion before proceeding)
         await connectRedis();
 
-        // 3. Configurar WebSockets y Servidor HTTP (ANTES DE CARGAR RUTAS)
+        // 3. Configure WebSockets and HTTP Server (BEFORE LOADING ROUTES)
         const server = http.createServer(app);
         const io = new Server(server, {
             cors: { origin: ['http://localhost', 'http://localhost:5173', 'http://127.0.0.1:5173'], credentials: true }
         });
 
-        // 4. Middleware para inyectar io en req (ANTES DE CARGAR RUTAS)
+        // 4. Middleware to inject io into req (BEFORE LOADING ROUTES)
         app.use((req, res, next) => { req.io = io; next(); });
 
         io.on('connection', (socket) => {
@@ -82,17 +82,17 @@ const startServer = async () => {
             });
         });
 
-        // 5. Cargar Rutas (DESPUÉS de configurar io)
+        // 5. Load Routes (AFTER configuring io)
         console.log("📡 Cargando rutas...");
         app.use('/api/locations', require('./src/routes/locations'));
         app.use('/api/events', require('./src/routes/events'));
         app.use('/api/analytics', require('./src/routes/analyticsRoutes'));
         app.use('/api/calendar', require('./src/routes/calendar'));
 
-        // 6. Configurar Rutas de Autenticación
+        // 6. Configure Authentication Routes
         setupAuthRoutes(app);
 
-        // 7. INICIAR ESCUCHA
+        // 7. START LISTENING
         server.listen(PORT, () => {
             logger.info('SERVER_START', { details: `Backend server running on http://localhost:${PORT}` });
         });
@@ -104,7 +104,7 @@ const startServer = async () => {
 };
 
 // ==========================================
-// 🔐 RUTAS DE AUTENTICACIÓN
+// AUTHENTICATION ROUTES
 // ==========================================
 function setupAuthRoutes(app) {
     const COOKIE_OPTIONS = {
@@ -118,13 +118,17 @@ function setupAuthRoutes(app) {
     app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
     app.get('/auth/google/callback',
-        passport.authenticate('google', { session: false, failureRedirect: 'http://localhost/login?error=auth_failed' }),
+        passport.authenticate('google', {
+            session: false,
+            failureRedirect: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?error=auth_failed`
+        }),
         (req, res) => {
             const user = req.user;
             const token = jwt.sign({ id: user.id, email: user.email, role: user.role, faculty_id: user.faculty_id }, SECRET_KEY, { expiresIn: '24h' });
             logger.info('LOGIN_GOOGLE', { user_email: user.email });
             res.cookie('access_token', token, COOKIE_OPTIONS);
-            res.redirect(`http://localhost/?loginSuccess=true&role=${user.role}`);
+            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+            res.redirect(`${frontendUrl}/?loginSuccess=true&role=${user.role}`);
         }
     );
 
@@ -240,5 +244,5 @@ function setupAuthRoutes(app) {
     });
 }
 
-// EJECUTAR ARRANQUE
+// EXECUTE STARTUP
 startServer();

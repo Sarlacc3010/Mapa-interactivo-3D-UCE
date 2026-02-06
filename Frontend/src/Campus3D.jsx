@@ -29,10 +29,10 @@ export default function Campus3D({
   const [pinLabel, setPinLabel] = useState("");
   const [dynamicLabels, setDynamicLabels] = useState([]);
 
-  // --- 🌙 LÓGICA DE AMBIENTE (DÍA/NOCHE) ---
+  // --- ENVIRONMENT LOGIC (DAY/NIGHT) ---
   useEffect(() => {
     if (isDark) {
-      // EFECTOS MODO OSCURO: Niebla y fondo nocturno
+      // DARK MODE EFFECTS: Fog and night background
       const darkBg = "#020617";
       globalScene.background = new THREE.Color(darkBg);
       globalScene.fog = new THREE.Fog(darkBg, 30, 160);
@@ -44,9 +44,9 @@ export default function Campus3D({
         }
       });
     } else {
-      // MODO CLARO ORIGINAL: Sin niebla y fondo claro
+      // ORIGINAL LIGHT MODE: No fog and light background
       globalScene.background = new THREE.Color("#f0f9ff");
-      globalScene.fog = null; // 🔥 Eliminamos la niebla por completo
+      globalScene.fog = null; // Eliminate fog completely
 
       scene.traverse((child) => {
         if (child.isMesh && child.material) {
@@ -57,7 +57,7 @@ export default function Campus3D({
     }
   }, [isDark, globalScene, scene]);
 
-  // --- 1. CONFIGURACIÓN VISUAL Y CÁLCULOS ORIGINALES ---
+  // --- 1. VISUAL CONFIGURATION AND ORIGINAL CALCULATIONS ---
   useEffect(() => {
     scene.traverse((child) => {
       if (child.isMesh) {
@@ -127,7 +127,7 @@ export default function Campus3D({
     setDynamicLabels(calculatedLabels);
   }, [scene, locations, userFacultyId]);
 
-  // 🔥 ANIMACIONES GSAP (Vuelo a edificio, aterrizaje FPS)
+  // GSAP ANIMATIONS (Fly to building, FPS landing)
   useGSAP(() => {
     if (!isFpsMode && targetLocation && targetLocation.object3d_id) {
       const targetObj = scene.getObjectByName(targetLocation.object3d_id);
@@ -234,22 +234,22 @@ export default function Campus3D({
           const today = new Date();
           today.setHours(0, 0, 0, 0);
 
-          console.log('🎯 [EVENTS] Checking for active events at location:', originalLoc.name);
-          console.log('🕐 [EVENTS] Current time (minutes):', currentTime, `(${now.getHours()}:${now.getMinutes()})`);
+          console.log('[EVENTS] Checking for active events at location:', originalLoc.name);
+          console.log('[EVENTS] Current time (minutes):', currentTime, `(${now.getHours()}:${now.getMinutes()})`);
           console.log('📅 [EVENTS] Today:', today.toISOString());
-          console.log('📋 [EVENTS] Total events in system:', events.length);
+          console.log('[EVENTS] Total events in system:', events.length);
 
           const hasActiveEvent = events.some(e => {
             if (String(e.location_id) !== String(originalLoc.id)) return false;
 
-            console.log('🔍 [EVENTS] Checking event:', e.title, 'at location_id:', e.location_id);
+            console.log('[EVENTS] Checking event:', e.title, 'at location_id:', e.location_id);
 
             // Check if event is today
             const eventDate = new Date(e.date);
             eventDate.setHours(0, 0, 0, 0);
             console.log('📅 [EVENTS] Event date:', eventDate.toISOString(), 'vs Today:', today.toISOString());
             if (eventDate.getTime() !== today.getTime()) {
-              console.log('❌ [EVENTS] Event is not today');
+              console.log('[EVENTS] Event is not today');
               return false;
             }
 
@@ -260,29 +260,29 @@ export default function Campus3D({
               const startMinutes = startH * 60 + startM;
               const endMinutes = endH * 60 + endM;
 
-              console.log('⏰ [EVENTS] Event time range:', `${e.time} - ${e.end_time}`, `(${startMinutes} - ${endMinutes} minutes)`);
-              console.log('⏰ [EVENTS] Current time:', currentTime, 'minutes');
+              console.log('[EVENTS] Event time range:', `${e.time} - ${e.end_time}`, `(${startMinutes} - ${endMinutes} minutes)`);
+              console.log('[EVENTS] Current time:', currentTime, 'minutes');
 
               // Event is active if current time is between start and end
               const isActive = currentTime >= startMinutes && currentTime <= endMinutes;
-              console.log(isActive ? '✅ [EVENTS] Event IS ACTIVE!' : '❌ [EVENTS] Event is not active now');
+              console.log(isActive ? '[EVENTS] Event IS ACTIVE!' : '[EVENTS] Event is not active now');
               return isActive;
             }
 
-            console.log('⚠️ [EVENTS] Event missing time or end_time');
+            console.log('[EVENTS] Event missing time or end_time');
             return false;
           });
 
-          console.log(hasActiveEvent ? '🎉 [EVENTS] Found active event! Opening modal...' : '📭 [EVENTS] No active events found');
+          console.log(hasActiveEvent ? '[EVENTS] Found active event! Opening modal...' : '[EVENTS] No active events found');
 
           if (hasActiveEvent && !notifiedEventsSession.current.has(originalLoc.id)) {
-            console.log('🚀 [EVENTS] Triggering onEventFound for:', originalLoc.name);
+            console.log('[EVENTS] Triggering onEventFound for:', originalLoc.name);
             if (onEventFound) onEventFound(originalLoc);
             notifiedEventsSession.current.add(originalLoc.id);
             // Clear after 60 seconds to allow re-notification
             setTimeout(() => notifiedEventsSession.current.delete(originalLoc.id), 60000);
           } else if (hasActiveEvent) {
-            console.log('⏭️ [EVENTS] Event already notified in this session');
+            console.log('[EVENTS] Event already notified in this session');
           }
         }
 
@@ -328,7 +328,7 @@ export default function Campus3D({
 
   return (
     <group dispose={null}>
-      {/* 💡 ILUMINACIÓN: Cambia estrictamente según el tema */}
+      {/* LIGHTING: Strictly changes according to theme */}
       <ambientLight intensity={isDark ? 0.1 : 0.6} />
       <directionalLight
         position={[20, 50, 20]}
@@ -346,7 +346,7 @@ export default function Campus3D({
         onPointerOut={() => document.body.style.cursor = 'default'}
       />
 
-      {/* ETIQUETAS: Se adaptan visualmente sin añadir elementos extra al modo claro */}
+      {/* LABELS: Visually adapt without adding extra elements to light mode */}
       {dynamicLabels.map((lbl) => (
         <React.Fragment key={lbl.id}>
           <Html position={lbl.position} center distanceFactor={100} style={{ pointerEvents: 'none' }}>
@@ -364,7 +364,7 @@ export default function Campus3D({
         </React.Fragment>
       ))}
 
-      {/* PIN ROJO DE USUARIO */}
+      {/* USER RED PIN */}
       {pinPosition && (
         <Html position={pinPosition} center distanceFactor={150}>
           <div className="flex flex-col items-center animate-bounce pointer-events-none">

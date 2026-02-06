@@ -1,11 +1,11 @@
 /**
- * Utilidades para validaciones comunes
+ * Utilities for common validations
  */
 
 /**
- * Valida que todos los campos requeridos estén presentes
- * @param {Object} data - Objeto con los datos a validar
- * @param {string[]} requiredFields - Array de nombres de campos requeridos
+ * Validates that all required fields are present
+ * @param {Object} data - Object with data to validate
+ * @param {string[]} requiredFields - Array of required field names
  * @returns {Object} - { isValid: boolean, missing: string[] }
  */
 function validateRequiredFields(data, requiredFields) {
@@ -21,14 +21,14 @@ function validateRequiredFields(data, requiredFields) {
         isValid: missing.length === 0,
         missing,
         message: missing.length > 0
-            ? `Faltan campos obligatorios: ${missing.join(', ')}`
+            ? `Missing required fields: ${missing.join(', ')}`
             : null
     };
 }
 
 /**
- * Valida formato de email
- * @param {string} email - Email a validar
+ * Validates email format
+ * @param {string} email - Email to validate
  * @returns {boolean}
  */
 function validateEmail(email) {
@@ -39,8 +39,8 @@ function validateEmail(email) {
 }
 
 /**
- * Valida que una fecha sea válida
- * @param {string|Date} date - Fecha a validar
+ * Validates that a date is valid
+ * @param {string|Date} date - Date to validate
  * @returns {boolean}
  */
 function validateDate(date) {
@@ -51,33 +51,33 @@ function validateDate(date) {
 }
 
 /**
- * Valida que un rango de fechas sea válido (inicio <= fin)
- * @param {string|Date} startDate - Fecha de inicio
- * @param {string|Date} endDate - Fecha de fin
+ * Validates that a date range is valid (start <= end)
+ * @param {string|Date} startDate - Start date
+ * @param {string|Date} endDate - End date
  * @returns {Object} - { isValid: boolean, message: string }
  */
 function validateDateRange(startDate, endDate) {
     if (!validateDate(startDate)) {
-        return { isValid: false, message: 'Fecha de inicio inválida' };
+        return { isValid: false, message: 'Invalid start date' };
     }
 
     if (!validateDate(endDate)) {
-        return { isValid: false, message: 'Fecha de fin inválida' };
+        return { isValid: false, message: 'Invalid end date' };
     }
 
     const start = new Date(startDate);
     const end = new Date(endDate);
 
     if (start > end) {
-        return { isValid: false, message: 'La fecha de inicio debe ser anterior a la fecha de fin' };
+        return { isValid: false, message: 'Start date must be before end date' };
     }
 
     return { isValid: true, message: null };
 }
 
 /**
- * Valida que un ID sea un número válido
- * @param {any} id - ID a validar
+ * Validates that an ID is a valid number
+ * @param {any} id - ID to validate
  * @returns {boolean}
  */
 function validateId(id) {
@@ -86,33 +86,33 @@ function validateId(id) {
 }
 
 /**
- * Valida longitud de string
- * @param {string} str - String a validar
- * @param {number} min - Longitud mínima
- * @param {number} max - Longitud máxima
+ * Validates string length
+ * @param {string} str - String to validate
+ * @param {number} min - Minimum length
+ * @param {number} max - Maximum length
  * @returns {Object} - { isValid: boolean, message: string }
  */
 function validateStringLength(str, min = 0, max = Infinity) {
     if (typeof str !== 'string') {
-        return { isValid: false, message: 'Debe ser un texto' };
+        return { isValid: false, message: 'Must be a text' };
     }
 
     const length = str.trim().length;
 
     if (length < min) {
-        return { isValid: false, message: `Debe tener al menos ${min} caracteres` };
+        return { isValid: false, message: `Must have at least ${min} characters` };
     }
 
     if (length > max) {
-        return { isValid: false, message: `Debe tener máximo ${max} caracteres` };
+        return { isValid: false, message: `Must have at most ${max} characters` };
     }
 
     return { isValid: true, message: null };
 }
 
 /**
- * Sanitiza un string removiendo caracteres peligrosos
- * @param {string} str - String a sanitizar
+ * Sanitizes a string removing dangerous characters
+ * @param {string} str - String to sanitize
  * @returns {string}
  */
 function sanitizeString(str) {
@@ -120,9 +120,9 @@ function sanitizeString(str) {
 
     return str
         .trim()
-        .replace(/[<>]/g, '') // Remover < y >
-        .replace(/javascript:/gi, '') // Remover javascript:
-        .replace(/on\w+=/gi, ''); // Remover event handlers
+        .replace(/[<>]/g, '') // Remove < and >
+        .replace(/javascript:/gi, '') // Remove javascript:
+        .replace(/on\w+=/gi, ''); // Remove event handlers
 }
 
 module.exports = {

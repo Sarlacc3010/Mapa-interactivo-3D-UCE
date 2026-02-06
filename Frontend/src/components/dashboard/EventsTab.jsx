@@ -78,7 +78,7 @@ export function EventsTab({ events, locations, onAddEvent, onUpdateEvent, onDele
   };
 
   // ===========================================================================
-  // RAMA 1: MODO OSCURO (DISEÑO NEÓN INTACTO)
+  // BRANCH 1: DARK MODE (NEON DESIGN INTACT)
   // ===========================================================================
   if (theme === 'dark') {
     const getEventStatusNeon = (event) => {
@@ -171,7 +171,7 @@ export function EventsTab({ events, locations, onAddEvent, onUpdateEvent, onDele
   }
 
   // ===========================================================================
-  // RAMA 2: MODO CLARO (DISEÑO ORIGINAL CON TEXTO OSCURO)
+  // BRANCH 2: LIGHT MODE (ORIGINAL DESIGN WITH DARK TEXT)
   // ===========================================================================
   const getEventStatusLight = (event) => {
     if (!event.date || !event.time) return { label: "Sin fecha", color: "bg-gray-100 text-gray-500" };
@@ -195,7 +195,7 @@ export function EventsTab({ events, locations, onAddEvent, onUpdateEvent, onDele
             {editingId && <button onClick={handleCancel} className="text-red-500 text-xs flex items-center gap-1"><X size={14} /> Cancelar</button>}
           </div>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Color de texto text-gray-900 añadido para legibilidad */}
+            {/* Text color text-gray-900 added for readability */}
             <Input required placeholder="Título" value={newEvent.title} onChange={e => setNewEvent({ ...newEvent, title: e.target.value })} className="text-gray-900" />
             <select className="w-full h-10 border rounded-lg px-3 text-sm text-gray-900 bg-white border-gray-200" value={newEvent.location_id} onChange={e => setNewEvent({ ...newEvent, location_id: e.target.value })} required>
               <option value="">Ubicación...</option>

@@ -1,15 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../middlewares/authMiddleware');
-// Importamos el controlador
+// Import controller
 const eventsController = require('../controllers/eventsController');
 
-// Rutas Públicas (Lectura)
+// Public Routes (Read)
 router.get('/', eventsController.getEvents);
 router.get('/location/:id', eventsController.getEventsByLocation);
 router.get('/:id', eventsController.getEventById);
 
-// Rutas Protegidas (Escritura - Admin)
+// Protected Routes (Write - Admin)
 router.post('/', authMiddleware, eventsController.createEvent);
 router.put('/:id', authMiddleware, eventsController.updateEvent);
 router.delete('/:id', authMiddleware, eventsController.deleteEvent);

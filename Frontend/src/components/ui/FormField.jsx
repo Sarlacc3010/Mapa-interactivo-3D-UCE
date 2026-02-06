@@ -2,8 +2,8 @@ import React from 'react';
 import { Input, Label } from './shim';
 
 /**
- * Componente reutilizable para campos de formulario con validación
- * Reduce duplicación en LoginScreen y otros formularios
+ * Reusable component for form fields with validation
+ * Reduces duplication in LoginScreen and other forms
  */
 export function FormField({
     label,
@@ -62,7 +62,7 @@ export function FormField({
 }
 
 /**
- * Campo de selección (dropdown) con el mismo estilo
+ * Selection field (dropdown) with the same style
  */
 export function SelectField({
     label,

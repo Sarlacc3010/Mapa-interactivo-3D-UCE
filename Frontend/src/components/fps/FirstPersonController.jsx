@@ -41,10 +41,10 @@ export function FirstPersonController({ active, speed = 30 }) {
     const targetVelocity = new Vector3();
     targetVelocity.set(inputX, 0, inputZ).normalize().multiplyScalar(currentSpeed);
 
-    // Suavizado de movimiento (Inercia)
+    // Movement smoothing (Inertia)
     velocity.current.lerp(targetVelocity, 15.0 * delta);
 
-    // --- COLISIONES ---
+    // --- COLLISIONS ---
     if (velocity.current.lengthSq() > 0.1) {
       const direction = new Vector3();
       controlsRef.current.getDirection(direction);
@@ -73,7 +73,7 @@ export function FirstPersonController({ active, speed = 30 }) {
       controlsRef.current.moveForward(velocity.current.z * delta);
     }
 
-    // Mantener altura fija
+    // Maintain fixed height
     camera.position.y = PLAYER_HEIGHT;
   });
 

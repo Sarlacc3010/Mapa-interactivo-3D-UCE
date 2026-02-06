@@ -4,13 +4,13 @@ const verifyToken = require('../middlewares/authMiddleware');
 const locationsController = require('../controllers/locationsController');
 
 // ==========================================
-// RUTAS PÚBLICAS
+// PUBLIC ROUTES
 // ==========================================
 router.get('/', locationsController.getLocations);
 router.post('/:id/visit', locationsController.registerVisit);
 
 // ==========================================
-// RUTAS ADMIN (PROTEGIDAS)
+// ADMIN ROUTES (PROTECTED)
 // ==========================================
 router.post('/', verifyToken, locationsController.createLocation);
 router.put('/:id', verifyToken, locationsController.updateLocation);

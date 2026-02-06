@@ -2,8 +2,8 @@ import React from 'react';
 import { useTheme } from '../../context/ThemeContext';
 
 /**
- * Componente wrapper que maneja estilos condicionales según el tema
- * Elimina duplicación de lógica de tema en múltiples componentes
+ * Wrapper component that handles conditional styles based on theme
+ * Eliminates theme logic duplication in multiple components
  */
 export function ThemeAwareLayout({
     lightClasses = "",
@@ -25,7 +25,7 @@ export function ThemeAwareLayout({
 }
 
 /**
- * Variante para contenedores con transición suave de tema
+ * Variant for containers with smooth theme transition
  */
 export function ThemeContainer({
     lightClasses = "",
@@ -48,7 +48,7 @@ export function ThemeContainer({
 }
 
 /**
- * Componente para texto con tema
+ * Component for themed text
  */
 export function ThemeText({
     lightColor = "text-gray-800",
@@ -72,8 +72,8 @@ export function ThemeText({
 }
 
 /**
- * Hook personalizado para obtener clases según tema
- * Útil cuando necesitas lógica más compleja
+ * Custom hook to get classes by theme
+ * Useful when you need more complex logic
  */
 export function useThemeClasses(lightClasses, darkClasses) {
     const { theme } = useTheme();

@@ -5,55 +5,55 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: true,      // Necesario para Docker: expone el puerto fuera del contenedor
-    strictPort: true, // Falla si el puerto 5173 ya está en uso
-    port: 5173,       // Puerto estándar de Vite
+    host: true,      // Necessary for Docker: exposes port outside container
+    strictPort: true, // Fails if port 5173 is already in use
+    port: 5173,       // Standard Vite port
     watch: {
-      usePolling: true, // Crítico para que los cambios de código se reflejen en Docker (especialmente en Windows)
+      usePolling: true, // Critical for code changes to reflect in Docker (especially on Windows)
     }
   },
   build: {
-    // 🚀 PRODUCCIÓN: Minificación agresiva con Terser
+    // PRODUCTION: Aggressive minification with Terser
     minify: 'terser',
     terserOptions: {
       compress: {
-        drop_console: true,      // Elimina console.log en producción
-        drop_debugger: true,     // Elimina debugger statements
-        pure_funcs: ['console.info', 'console.debug'] // Elimina funciones específicas
+        drop_console: true,      // Remove console.log in production
+        drop_debugger: true,     // Remove debugger statements
+        pure_funcs: ['console.info', 'console.debug'] // Remove specific functions
       }
     },
     rollupOptions: {
       output: {
         manualChunks: {
-          // 📦 React ecosystem (core libraries)
+          // React ecosystem (core libraries)
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
 
-          // 🎨 Three.js ecosystem (muy pesado ~600KB)
+          // Three.js ecosystem (very heavy ~600KB)
           'three': ['three'],
           'three-fiber': ['@react-three/fiber', '@react-three/drei'],
 
-          // 🔄 Data fetching & state
+          // Data fetching & state
           'react-query': ['@tanstack/react-query'],
 
-          // 🔌 Real-time communication
+          // Real-time communication
           'socket': ['socket.io-client'],
 
-          // 🎯 Icons (separado para mejor caching)
+          // Icons (separated for better caching)
           'icons': ['lucide-react'],
 
-          // 📊 Charts & UI components
+          // Charts & UI components
           'ui-vendor': ['recharts']
         }
       }
     },
-    // Aumentar el límite de advertencia de chunk size
+    // Increase chunk size warning limit
     chunkSizeWarningLimit: 1000,
 
-    // 🎯 Optimizaciones adicionales
-    reportCompressedSize: false, // Más rápido en CI/CD
-    sourcemap: false,            // No generar sourcemaps en producción (más rápido)
+    // Additional optimizations
+    reportCompressedSize: false, // Faster in CI/CD
+    sourcemap: false,            // Do not generate sourcemaps in production (faster)
 
-    // 📦 Optimización de assets
-    assetsInlineLimit: 4096,     // Inline assets < 4KB como base64
+    // Assets optimization
+    assetsInlineLimit: 4096,     // Inline assets < 4KB as base64
   }
 })

@@ -1,11 +1,11 @@
 import React from 'react';
 
 /**
- * Componente centralizado para estados de carga
- * Proporciona diferentes variantes de loaders para distintos contextos
+ * Centralized component for loading states
+ * Provides different loader variants for different contexts
  */
 
-// Loader de pantalla completa
+// Full screen loader
 export function ScreenLoader({ message = "CARGANDO INTERFAZ..." }) {
     return (
         <div className="flex h-screen w-full flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-white gap-4 transition-colors duration-500">
@@ -15,7 +15,7 @@ export function ScreenLoader({ message = "CARGANDO INTERFAZ..." }) {
     );
 }
 
-// Loader inline (para secciones de la página)
+// Inline loader (for page sections)
 export function InlineLoader({ size = "md", message = null }) {
     const sizeClasses = {
         sm: "w-4 h-4 border-2",
@@ -31,7 +31,7 @@ export function InlineLoader({ size = "md", message = null }) {
     );
 }
 
-// Loader para botones
+// Button loader
 export function ButtonLoader({ size = "sm" }) {
     const sizeClasses = {
         xs: "w-3 h-3 border",
@@ -44,7 +44,7 @@ export function ButtonLoader({ size = "sm" }) {
     );
 }
 
-// Loader 3D (para canvas de Three.js)
+// 3D Loader (for Three.js canvas)
 export function Loader3D() {
     return (
         <div className="flex flex-col items-center gap-2 select-none pointer-events-none">
@@ -56,5 +56,5 @@ export function Loader3D() {
     );
 }
 
-// Export default para compatibilidad
+// Default export for compatibility
 export default ScreenLoader;

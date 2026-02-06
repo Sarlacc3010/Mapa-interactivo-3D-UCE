@@ -1,4 +1,4 @@
-﻿          {/* Tarjeta de Información */}
+﻿          {/* Information Card */}
           {selectedLoc && (
             <BuildingInfoCard
               location={selectedLoc}
@@ -7,7 +7,7 @@
             />
           )}
 
-          {/*  MODAL DE EVENTOS DE FACULTAD */}
+          {/* FACULTY EVENTS MODAL */}
           <EventsModal
             isOpen={showEvents}
             onClose={() => setShowEvents(false)}

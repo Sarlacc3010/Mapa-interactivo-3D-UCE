@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { CheckCircle, XCircle, Loader } from 'lucide-react';
-// 🔥 CORRECCIÓN 1: Importar 'api' por defecto (sin llaves {})
-import api from '../api/client'; 
+// CORRECTION 1: Import 'api' by default (without braces {})
+import api from '../api/client';
 
 export function VerifyEmail() {
   const [searchParams] = useSearchParams();
@@ -11,7 +11,7 @@ export function VerifyEmail() {
   const [status, setStatus] = useState('verifying'); // verifying, success, error
 
   useEffect(() => {
-    // Si no hay token en la URL, es un error inmediato
+    // If no token in URL, immediate error
     if (!token) {
       setStatus('error');
       return;
@@ -19,12 +19,12 @@ export function VerifyEmail() {
 
     const verifyToken = async () => {
       try {
-        // 🔥 CORRECCIÓN 2: Usar 'api.post' en lugar de fetch.
-        // Axios ya sabe que la base es localhost:5000/api, solo ponemos la ruta final.
+        // CORRECTION 2: Use 'api.post' instead of fetch.
+        // Axios already knows base is localhost:5000/api, just put final route.
         await api.post('/verify-email', { token });
 
         setStatus('success');
-        // Redirigir al login después de 3.5 segundos
+        // Redirect to login after 3.5 seconds
         setTimeout(() => navigate('/login'), 3500);
 
       } catch (error) {
@@ -39,8 +39,8 @@ export function VerifyEmail() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
       <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md w-full border border-gray-100 transition-all duration-300 transform hover:scale-[1.01]">
-        
-        {/* ESTADO: CARGANDO */}
+
+        {/* STATE: LOADING */}
         {status === 'verifying' && (
           <div className="flex flex-col items-center animate-pulse">
             <Loader size={50} className="text-blue-600 animate-spin mb-6" />
@@ -49,16 +49,16 @@ export function VerifyEmail() {
           </div>
         )}
 
-        {/* ESTADO: ÉXITO */}
+        {/* STATE: SUCCESS */}
         {status === 'success' && (
           <div className="flex flex-col items-center animate-in fade-in zoom-in duration-300">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-6 shadow-sm">
-                <CheckCircle size={32} className="text-green-600" />
+              <CheckCircle size={32} className="text-green-600" />
             </div>
             <h2 className="text-2xl font-bold text-gray-800 mb-2">¡Cuenta Verificada!</h2>
-            <p className="text-gray-600 mb-6">Tu correo ha sido confirmado correctamente. <br/> Te estamos redirigiendo...</p>
-            
-            <button 
+            <p className="text-gray-600 mb-6">Tu correo ha sido confirmado correctamente. <br /> Te estamos redirigiendo...</p>
+
+            <button
               onClick={() => navigate('/login')}
               className="w-full bg-[#1e3a8a] text-white py-3 rounded-xl font-bold hover:bg-blue-900 transition-all shadow-lg shadow-blue-900/20"
             >
@@ -67,28 +67,28 @@ export function VerifyEmail() {
           </div>
         )}
 
-        {/* ESTADO: ERROR */}
+        {/* STATE: ERROR */}
         {status === 'error' && (
           <div className="flex flex-col items-center animate-in shake duration-300">
-             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-6 shadow-sm">
-                <XCircle size={32} className="text-red-600" />
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-6 shadow-sm">
+              <XCircle size={32} className="text-red-600" />
             </div>
             <h2 className="text-2xl font-bold text-gray-800 mb-2">Enlace Inválido</h2>
             <p className="text-gray-600 mb-6">
               El enlace de verificación ha expirado o ya fue utilizado anteriormente.
             </p>
             <div className="flex flex-col gap-3 w-full">
-                <button 
-                  onClick={() => navigate('/login')}
-                  className="w-full border border-gray-300 text-gray-700 py-2.5 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
-                >
-                  Volver al Login
-                </button>
+              <button
+                onClick={() => navigate('/login')}
+                className="w-full border border-gray-300 text-gray-700 py-2.5 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
+              >
+                Volver al Login
+              </button>
             </div>
           </div>
         )}
       </div>
-      
+
       <p className="mt-8 text-xs text-gray-400 font-mono">
         Campus Virtual UCE &copy; 2026
       </p>

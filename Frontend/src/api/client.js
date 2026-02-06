@@ -10,16 +10,16 @@ const api = axios.create({
   },
 });
 
-// Interceptor para suprimir errores 401 en /profile (esperados cuando no hay sesión)
+// Interceptor to suppress 401 errors on /profile (expected when no session)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Suprimir log de error 401 en /profile (es esperado cuando no hay sesión)
+    // Suppress 401 error log on /profile (expected when no session)
     if (error.config?.url === '/profile' && error.response?.status === 401) {
-      // Silenciosamente rechazar sin loguear
+      // Silently reject without logging
       return Promise.reject(error);
     }
-    // Para otros errores, dejar que se muestren normalmente
+    // For other errors, let them show normally
     return Promise.reject(error);
   }
 );

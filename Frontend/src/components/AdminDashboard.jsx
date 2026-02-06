@@ -8,7 +8,7 @@ import { ThemeToggle } from "./ThemeToggle";
 import { Download, FileText, BarChart3, Map as MapIcon, LogOut } from "lucide-react"; // Icons for Report
 import api from "../api/client"; // Axios client for PDF request
 
-// 🔥 GSAP Animations
+// GSAP Animations
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 

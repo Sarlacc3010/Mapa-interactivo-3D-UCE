@@ -5,10 +5,10 @@ FROM node:18-alpine AS deps
 
 WORKDIR /app
 
-# Copiamos solo package files para aprovechar cache de Docker
+# Copy only package files to leverage Docker cache
 COPY package*.json ./
 
-# Instalamos solo dependencias de producción
+# Install only production dependencies
 RUN npm ci --only=production && npm cache clean --force
 
 # ============================================
@@ -18,18 +18,18 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Copiamos node_modules desde el stage anterior
+# Copy node_modules from previous stage
 COPY --from=deps /app/node_modules ./node_modules
 
-# Copiamos el código de la aplicación
+# Copy application code
 COPY --chown=node:node . .
 
-# --- SEGURIDAD: Ejecutar como usuario no-root ---
+# --- SECURITY: Run as non-root user ---
 USER node
 
 EXPOSE 5000
 
-# Health check para Docker/AWS
+# Health check for Docker/AWS
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD node -e "require('http').get('http://localhost:5000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 

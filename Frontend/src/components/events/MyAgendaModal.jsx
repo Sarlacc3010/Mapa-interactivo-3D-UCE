@@ -7,7 +7,7 @@ export function MyAgendaModal({ isOpen, onClose }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // CARGAR MIS EVENTOS
+  // LOAD MY EVENTS
   useEffect(() => {
     if (isOpen) {
       setLoading(true);
@@ -27,12 +27,12 @@ export function MyAgendaModal({ isOpen, onClose }) {
     }
   }, [isOpen]);
 
-  // ELIMINAR EVENTO
+  // DELETE EVENT
   const handleRemove = async (eventId) => {
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     const API_BASE = isLocal ? 'http://localhost:5000' : '';
     try {
-      // Usamos el mismo endpoint 'toggle' que ya sirve para quitar si existe
+      // Using the same 'toggle' endpoint that already serves to remove if it exists
       const res = await fetch(`${API_BASE}/api/calendar/toggle`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -40,7 +40,7 @@ export function MyAgendaModal({ isOpen, onClose }) {
         credentials: 'include'
       });
       if (res.ok) {
-        // Lo quitamos de la lista visualmente
+        // Visually remove from list
         setEvents(prev => prev.filter(e => e.id !== eventId));
       }
     } catch (error) {
@@ -50,12 +50,12 @@ export function MyAgendaModal({ isOpen, onClose }) {
 
   if (!isOpen) return null;
 
-  // Lógica de fechas (reutilizada)
+  // Date logic (reused)
   const normalizeDate = (d) => d ? (d instanceof Date ? d : new Date(d)).toISOString().split('T')[0] : "";
   const getDateParts = (dateString) => {
     try {
       const d = new Date(dateString);
-      // Ajuste zona horaria simple
+      // Simple timezone adjustment
       const localDate = new Date(d.getTime() + d.getTimezoneOffset() * 60000);
       return {
         month: localDate.toLocaleString("es-ES", { month: "short" }).toUpperCase().replace(".", ""),
@@ -64,11 +64,11 @@ export function MyAgendaModal({ isOpen, onClose }) {
     } catch (e) { return { month: "---", day: "--" }; }
   };
 
-  // ESTILOS COMUNES (CONTENEDOR)
+  // COMMON STYLES (CONTAINER)
   const overlayClass = "fixed inset-0 z-[70] flex items-center justify-center px-4";
   const bgOverlayClass = "absolute inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300";
 
-  // ESTILO DARK VS LIGHT
+  // DARK VS LIGHT STYLE
   const isDark = theme === 'dark';
   const containerClass = isDark
     ? "relative w-full max-w-lg bg-slate-900/95 backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] border border-white/10 ring-1 ring-purple-500/20"
@@ -85,7 +85,7 @@ export function MyAgendaModal({ isOpen, onClose }) {
 
         {/* HEADER */}
         <div className={headerClass}>
-          {/* Decoración Fondo */}
+          {/* Background Decoration */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/10 rounded-full -mr-20 -mt-20 blur-3xl pointer-events-none"></div>
 
           <div className="relative z-10 flex justify-between items-start">
@@ -106,7 +106,7 @@ export function MyAgendaModal({ isOpen, onClose }) {
           </div>
         </div>
 
-        {/* LISTA */}
+        {/* LIST */}
         <div className={`p-5 overflow-y-auto custom-scrollbar flex-1 ${isDark ? "bg-slate-900/50" : "bg-gray-50"}`}>
           {loading ? (
             <div className="text-center py-10 opacity-50 animate-pulse">Cargando tu agenda...</div>
@@ -124,7 +124,7 @@ export function MyAgendaModal({ isOpen, onClose }) {
                 const { month, day } = getDateParts(e.date);
                 return (
                   <div key={e.id} className={`flex gap-4 p-3 rounded-xl border transition-all ${isDark ? "bg-slate-800/50 border-white/5" : "bg-white border-gray-100 shadow-sm"}`}>
-                    {/* Fecha */}
+                    {/* Date */}
                     <div className="flex flex-col items-center justify-center w-12 shrink-0">
                       <span className={`text-[10px] font-bold uppercase ${isDark ? "text-purple-400" : "text-indigo-600"}`}>{month}</span>
                       <span className={`text-xl font-bold ${isDark ? "text-white" : "text-gray-800"}`}>{day}</span>
@@ -137,7 +137,7 @@ export function MyAgendaModal({ isOpen, onClose }) {
                         <span className="flex items-center gap-1"><MapPin size={10} /> {e.location_name}</span>
                       </div>
                     </div>
-                    {/* Botón Borrar */}
+                    {/* Delete Button */}
                     <button
                       onClick={() => handleRemove(e.id)}
                       className="self-center p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"

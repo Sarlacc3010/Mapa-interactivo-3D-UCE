@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 
+/**
+ * Component for First Person Shooter (FPS) style controls UI.
+ * Handles keyboard input visualization and crosshair display.
+ */
 export function FPSControls() {
+    // State to track currently pressed keys for visual feedback
     const [keysPressed, setKeysPressed] = useState({
         w: false,
         a: false,
@@ -10,6 +15,7 @@ export function FPSControls() {
         ctrl: false
     });
 
+    // Effect to handle keydown and keyup events
     useEffect(() => {
         const handleKeyDown = (e) => {
             const key = e.key.toLowerCase();

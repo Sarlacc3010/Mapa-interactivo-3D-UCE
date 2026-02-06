@@ -32,7 +32,7 @@ services:
     depends_on:
       - backend
 
-  # --- 3. BASE DE DATOS SQL ---
+  # --- 3. SQL DATABASE ---
   postgres_db:
     image: postgres:15-alpine
     container_name: uce_sql
@@ -46,7 +46,7 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
 
-  # --- 4. VISOR SQL (PgAdmin) ---
+  # --- 4. SQL VIEWER (PgAdmin) ---
   pgadmin:
     image: dpage/pgadmin4
     container_name: uce_pgadmin
@@ -59,7 +59,7 @@ services:
     depends_on:
       - postgres_db
 
-  # --- 5. CACHÉ (Redis) ---
+  # --- 5. CACHE (Redis) ---
   redis_cache:
     image: redis:alpine
     container_name: uce_redis
@@ -70,7 +70,7 @@ services:
     volumes:
       - redis_data:/data
 
-  # --- 6. VISOR REDIS ---
+  # --- 6. REDIS VIEWER ---
   redis-commander:
     container_name: uce_redis_commander
     image: rediscommander/redis-commander:latest

@@ -4,17 +4,17 @@ import { Globe, Facebook, Instagram } from "lucide-react";
 
 export function Footer({ className }) {
   return (
-    <footer 
+    <footer
       className={cn(
-        // Diseño base: Vidrio esmerilado igual que el Header
+        // Base design: Frosted glass same as Header
         "w-full px-6 py-3 z-20 bg-white/10 backdrop-blur-md border-t border-white/20 text-white",
-        // Flexbox para separar contenido en escritorio y apilar en móvil
+        // Flexbox to separate content on desktop and stack on mobile
         "flex flex-col sm:flex-row items-center justify-between gap-3",
         className
       )}
     >
-      
-      {/* Lado Izquierdo: Copyright */}
+
+      {/* Left Side: Copyright */}
       <div className="text-center sm:text-left">
         <p className="text-[10px] sm:text-xs font-medium opacity-90 tracking-wide">
           © 2025 Universidad Central del Ecuador
@@ -24,7 +24,7 @@ export function Footer({ className }) {
         </p>
       </div>
 
-      {/* Lado Derecho: Redes Sociales */}
+      {/* Right Side: Social Media */}
       <div className="flex items-center gap-1">
         <SocialLink icon={Globe} href="https://www.uce.edu.ec" label="Web Oficial" />
         <SocialLink icon={Facebook} href="https://www.facebook.com/lacentralec" label="Facebook" />
@@ -35,12 +35,12 @@ export function Footer({ className }) {
   );
 }
 
-// Componente auxiliar para los iconos
+// Helper component for icons
 function SocialLink({ icon: Icon, href, label }) {
   return (
-    <a 
-      href={href} 
-      target="_blank" 
+    <a
+      href={href}
+      target="_blank"
       rel="noopener noreferrer"
       title={label}
       className="p-2 rounded-full hover:bg-white/20 text-white/70 hover:text-white transition-all duration-200 hover:scale-110"

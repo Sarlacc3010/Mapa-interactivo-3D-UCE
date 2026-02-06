@@ -8,15 +8,15 @@ const { validateRequiredFields } = require('../utils/validationUtils');
 const CACHE_KEY = 'locations:all';
 
 // =================================================================
-// 1. OBTENER UBICACIONES (CON CACHÉ)
+// 1. GET LOCATIONS (WITH CACHE)
 // =================================================================
 const getLocations = async (req, res) => {
     try {
         const locations = await withCache(CACHE_KEY, async () => {
-            console.log('🐢 [DB READ] Consultando PostgreSQL...');
+            console.log('[DB READ] Querying PostgreSQL...');
             const result = await pool.query("SELECT * FROM locations ORDER BY id ASC");
 
-            // Transformar URLs de imágenes
+            // Transform image URLs
             return result.rows.map(loc => ({
                 ...loc,
                 image_url: getImageUrl(loc.image_url)
@@ -30,14 +30,14 @@ const getLocations = async (req, res) => {
 };
 
 // =================================================================
-// 2. REGISTRAR VISITA (PÚBLICO / MIXTO)
+// 2. REGISTER VISIT (PUBLIC / MIXED)
 // =================================================================
 const registerVisit = async (req, res) => {
     try {
         const { id } = req.params;
         let userEmail = 'anonimo@visitante.com';
 
-        // Intentar obtener email del token si existe
+        // Try to get email from token if exists
         const token = req.cookies.access_token ||
             (req.headers['authorization'] && req.headers['authorization'].split(' ')[1]);
 
@@ -46,7 +46,7 @@ const registerVisit = async (req, res) => {
                 const decoded = jwt.verify(token, process.env.JWT_SECRET);
                 userEmail = decoded.email;
             } catch (e) {
-                console.log("Token inválido en visita, registrando como anónimo.");
+                console.log("Invalid token in visit, registering as anonymous.");
             }
         }
 
@@ -55,16 +55,16 @@ const registerVisit = async (req, res) => {
             [id, userEmail]
         );
 
-        // Notificar vía WebSocket
+        // Notify via WebSocket
         if (req.io) {
-            console.log('🔥 [WEBSOCKET] Emitiendo evento server:visit_registered para location_id:', id);
+            console.log('[WEBSOCKET] Emitting event server:visit_registered for location_id:', id);
             req.io.emit('server:visit_registered', {
                 location_id: id,
                 timestamp: new Date()
             });
-            console.log('✅ [WEBSOCKET] Evento emitido correctamente');
+            console.log('[WEBSOCKET] Event emitted successfully');
         } else {
-            console.warn('⚠️ [WEBSOCKET] req.io no está disponible, no se puede emitir evento');
+            console.warn('[WEBSOCKET] req.io is not available, cannot emit event');
         }
 
         sendSuccess(res, { message: "Visita registrada correctamente" });
@@ -74,13 +74,13 @@ const registerVisit = async (req, res) => {
 };
 
 // =================================================================
-// 3. CREAR UBICACIÓN (ADMIN)
+// 3. CREATE LOCATION (ADMIN)
 // =================================================================
 const createLocation = async (req, res) => {
     try {
         const { name, description, category, coordinates, object3d_id, faculty_id, image_url } = req.body;
 
-        // Validar campos requeridos
+        // Validate required fields
         const validation = validateRequiredFields(req.body, ['name', 'coordinates']);
         if (!validation.isValid) {
             return sendError(res, validation.message, 400);
@@ -91,7 +91,7 @@ const createLocation = async (req, res) => {
             [name, description, category, JSON.stringify(coordinates), object3d_id, faculty_id, image_url]
         );
 
-        // Invalidar caché
+        // Invalidate cache
         await invalidateCache(CACHE_KEY);
 
         sendCreated(res, newLocation.rows[0]);
@@ -101,7 +101,7 @@ const createLocation = async (req, res) => {
 };
 
 // =================================================================
-// 4. EDITAR UBICACIÓN (ADMIN)
+// 4. EDIT LOCATION (ADMIN)
 // =================================================================
 const updateLocation = async (req, res) => {
     try {
@@ -117,7 +117,7 @@ const updateLocation = async (req, res) => {
             return sendNotFound(res, 'Ubicación');
         }
 
-        // Invalidar caché
+        // Invalidate cache
         await invalidateCache(CACHE_KEY);
 
         sendSuccess(res, updateLocation.rows[0]);
@@ -127,7 +127,7 @@ const updateLocation = async (req, res) => {
 };
 
 // =================================================================
-// 5. ELIMINAR UBICACIÓN (ADMIN)
+// 5. DELETE LOCATION (ADMIN)
 // =================================================================
 const deleteLocation = async (req, res) => {
     try {
@@ -138,7 +138,7 @@ const deleteLocation = async (req, res) => {
             return sendNotFound(res, 'Ubicación');
         }
 
-        // Invalidar caché
+        // Invalidate cache
         await invalidateCache(CACHE_KEY);
 
         sendDeleted(res, "Ubicación eliminada");

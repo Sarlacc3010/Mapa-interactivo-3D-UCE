@@ -1,94 +1,94 @@
 const { client: redisClient } = require('../config/redis');
 
 /**
- * Obtiene datos del caché de Redis
- * @param {string} key - Clave del caché
- * @returns {Promise<any|null>} - Datos parseados o null si no existe/error
+ * Gets data from Redis cache
+ * @param {string} key - Cache key
+ * @returns {Promise<any|null>} - Parsed data or null if not exists/error
  */
 async function getCachedData(key) {
     if (!redisClient || !redisClient.isOpen) {
-        console.warn('⚠️ Redis no disponible para lectura');
+        console.warn('Redis not available for reading');
         return null;
     }
 
     try {
         const cached = await redisClient.get(key);
         if (cached) {
-            console.log(`🚀 [CACHE HIT] Clave: ${key}`);
+            console.log(`[CACHE HIT] Key: ${key}`);
             return JSON.parse(cached);
         }
         return null;
     } catch (error) {
-        console.error(`❌ Error leyendo caché [${key}]:`, error.message);
+        console.error(`Error reading cache [${key}]:`, error.message);
         return null;
     }
 }
 
 /**
- * Guarda datos en el caché de Redis
- * @param {string} key - Clave del caché
- * @param {any} data - Datos a guardar (serán stringify)
- * @param {number} ttl - Tiempo de vida en segundos (default: 3600 = 1 hora)
- * @returns {Promise<boolean>} - true si se guardó exitosamente
+ * Saves data to Redis cache
+ * @param {string} key - Cache key
+ * @param {any} data - Data to save (will be stringified)
+ * @param {number} ttl - Time to live in seconds (default: 3600 = 1 hour)
+ * @returns {Promise<boolean>} - true if saved successfully
  */
 async function setCachedData(key, data, ttl = 3600) {
     if (!redisClient || !redisClient.isOpen) {
-        console.warn('⚠️ Redis no disponible para escritura');
+        console.warn('Redis not available for writing');
         return false;
     }
 
     try {
         await redisClient.setEx(key, ttl, JSON.stringify(data));
-        console.log(`💾 [CACHE SAVE] Clave: ${key}, TTL: ${ttl}s`);
+        console.log(`[CACHE SAVE] Key: ${key}, TTL: ${ttl}s`);
         return true;
     } catch (error) {
-        console.error(`❌ Error guardando caché [${key}]:`, error.message);
+        console.error(`Error saving cache [${key}]:`, error.message);
         return false;
     }
 }
 
 /**
- * Invalida (elimina) una o varias claves del caché
- * @param {string|string[]} keys - Clave(s) a invalidar
- * @returns {Promise<boolean>} - true si se invalidó exitosamente
+ * Invalidates (deletes) one or multiple cache keys
+ * @param {string|string[]} keys - Key(s) to invalidate
+ * @returns {Promise<boolean>} - true if invalidated successfully
  */
 async function invalidateCache(keys) {
     if (!redisClient || !redisClient.isOpen) {
-        console.warn('⚠️ Redis no disponible para invalidación');
+        console.warn('Redis not available for invalidation');
         return false;
     }
 
     try {
         const keyArray = Array.isArray(keys) ? keys : [keys];
         await redisClient.del(keyArray);
-        console.log(`🗑️ [CACHE INVALIDATE] Claves: ${keyArray.join(', ')}`);
+        console.log(`[CACHE INVALIDATE] Keys: ${keyArray.join(', ')}`);
         return true;
     } catch (error) {
-        console.error(`❌ Error invalidando caché:`, error.message);
+        console.error(`Error invalidating cache:`, error.message);
         return false;
     }
 }
 
 /**
- * Wrapper para operaciones con caché automático
- * Intenta obtener del caché, si no existe ejecuta la función y guarda el resultado
- * @param {string} key - Clave del caché
- * @param {Function} fetchFn - Función async que obtiene los datos si no están en caché
- * @param {number} ttl - Tiempo de vida en segundos (default: 3600)
- * @returns {Promise<any>} - Datos del caché o de la función
+ * Wrapper for automatic cache operations
+ * Tries to get from cache, if not exists executes function and saves result
+ * @param {string} key - Cache key
+ * @param {Function} fetchFn - Async function that gets data if not in cache
+ * @param {number} ttl - Time to live in seconds (default: 3600)
+ * @returns {Promise<any>} - Data from cache or function
  */
 async function withCache(key, fetchFn, ttl = 3600) {
-    // Intentar obtener del caché
+    // Try to get from cache
     const cached = await getCachedData(key);
     if (cached !== null) {
         return cached;
     }
 
-    // Si no está en caché, ejecutar función
-    console.log(`🐢 [DB READ] Ejecutando función para clave: ${key}`);
+    // If not in cache, execute function
+    console.log(`[DB READ] Executing function for key: ${key}`);
     const data = await fetchFn();
 
-    // Guardar en caché
+    // Save to cache
     await setCachedData(key, data, ttl);
 
     return data;

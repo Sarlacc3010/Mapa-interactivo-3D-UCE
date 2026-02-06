@@ -32,7 +32,7 @@ export function AnalyticsTab({ locations }) {
     }
   }, { scope: containerRef, dependencies: [loading] });
 
-  // Lógica de datos original intacta
+  // Original data logic intact
   const trafficData = useMemo(() => {
     if (!peakHours.length) return [];
     const buckets = Array.from({ length: 24 }, (_, i) => ({ label: `${i}:00`, visitas: 0 }));
@@ -73,7 +73,7 @@ export function AnalyticsTab({ locations }) {
   }
 
   // ===========================================================================
-  // 1. RAMA MODO OSCURO: DISEÑO NEÓN INTACTO
+  // 1. DARK MODE BRANCH: NEON DESIGN INTACT
   // ===========================================================================
   if (theme === 'dark') {
     const NEON_COLORS = ['#22d3ee', '#f472b6', '#a78bfa', '#34d399', '#fbbf24', '#38bdf8'];
@@ -117,7 +117,7 @@ export function AnalyticsTab({ locations }) {
   }
 
   // ===========================================================================
-  // 2. RAMA MODO CLARO: DISEÑO INSTITUCIONAL (CON COLORES CORREGIDOS)
+  // 2. LIGHT MODE BRANCH: INSTITUTIONAL DESIGN (WITH CORRECTED COLORS)
   // ===========================================================================
   const LIGHT_COLORS = ['#1e3a8a', '#D9232D', '#10B981', '#F59E0B', '#8b5cf6', '#ec4899'];
   return (
@@ -140,7 +140,7 @@ export function AnalyticsTab({ locations }) {
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
               <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#6b7280' }} />
               <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} allowDecimals={false} axisLine={false} tickLine={false} />
-              {/* Tooltip con colores forzados para Modo Claro */}
+              {/* Tooltip with forced colors for Light Mode */}
               <Tooltip
                 contentStyle={{ borderRadius: '8px', border: 'none', backgroundColor: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
                 labelStyle={{ color: '#111827', fontWeight: 'bold' }}
@@ -194,7 +194,7 @@ export function AnalyticsTab({ locations }) {
   );
 }
 
-// Auxiliares Neón y Institucionales
+// Neon and Institutional Helpers
 function StatCardNeon({ title, value, icon: Icon, color, bgGlow, border, shadow }) {
   return (
     <div className={`group relative bg-slate-900/80 p-6 rounded-2xl border ${border} ${shadow} flex items-center justify-between transition-all duration-300 hover:scale-[1.02] hover:bg-slate-900`}>

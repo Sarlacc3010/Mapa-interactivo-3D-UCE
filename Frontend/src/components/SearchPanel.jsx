@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Search, X, MapPin, Building2, BookOpen, Theater, Briefcase, Clock } from "lucide-react";
-import { Input, Badge, ScrollArea } from "./ui/shim"; // Usados solo en modo claro
+import { Input, Badge, ScrollArea } from "./ui/shim"; // Used only in light mode
 import { useTheme } from "../context/ThemeContext";
 
 const categoryIcons = {
@@ -11,7 +11,7 @@ const categoryIcons = {
 const FILTER_CATEGORIES = ["Todos", "Facultades", "Biblioteca", "Administrativo"];
 
 export function SearchPanel({ locations = [], onLocationSelect }) {
-  const { theme } = useTheme(); // Detectamos el modo actual
+  const { theme } = useTheme(); // Detect current mode
   const [isExpanded, setIsExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Todos");
@@ -31,30 +31,30 @@ export function SearchPanel({ locations = [], onLocationSelect }) {
     const timePattern = /(\d{1,2}):(\d{2})/g;
     const times = schedule.match(timePattern);
     if (times && times.length >= 2) {
-        const [startH, startM] = times[0].split(':').map(Number);
-        const [endH, endM] = times[1].split(':').map(Number);
-        return minutes >= (startH * 60 + startM) && minutes < (endH * 60 + endM);
+      const [startH, startM] = times[0].split(':').map(Number);
+      const [endH, endM] = times[1].split(':').map(Number);
+      return minutes >= (startH * 60 + startM) && minutes < (endH * 60 + endM);
     }
     return false;
   };
 
   const filtered = locations.filter(loc => {
     const name = loc.name || "";
-    const category = loc.category || "Otro"; 
+    const category = loc.category || "Otro";
     const matchText = name.toLowerCase().includes(searchQuery.toLowerCase());
-    let matchCat = selectedCategory === "Todos" || 
-      (selectedCategory === "Facultades" && ["Facultades", "Facultad", "Académico"].includes(category)) || 
+    let matchCat = selectedCategory === "Todos" ||
+      (selectedCategory === "Facultades" && ["Facultades", "Facultad", "Académico"].includes(category)) ||
       category === selectedCategory;
     return matchText && matchCat;
   });
 
   // ===========================================================================
-  // RAMA 1: DISEÑO NEÓN (MODO OSCURO) - TU CÓDIGO INTACTO
+  // BRANCH 1: NEON DESIGN (DARK MODE) - CODE INTACT
   // ===========================================================================
   if (theme === 'dark') {
     if (!isExpanded) {
       return (
-        <button 
+        <button
           onClick={() => setIsExpanded(true)}
           className="absolute top-28 left-6 z-20 w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 group bg-slate-900/80 backdrop-blur-md border border-cyan-500/30 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.2)] hover:bg-cyan-950/80 hover:scale-105 active:scale-95 hover:border-cyan-400 hover:shadow-[0_0_20px_rgba(6,182,212,0.4)]"
         >
@@ -79,7 +79,7 @@ export function SearchPanel({ locations = [], onLocationSelect }) {
           </div>
           <div className="relative group">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
-            <input 
+            <input
               autoFocus type="text" placeholder="Buscar facultad, auditorio..." value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 h-11 bg-slate-950/50 border border-white/10 text-slate-200 text-sm rounded-xl focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 focus:bg-slate-900 placeholder:text-slate-600 transition-all"
@@ -117,14 +117,14 @@ export function SearchPanel({ locations = [], onLocationSelect }) {
           })}
         </div>
         <div className="px-4 py-2 bg-black/20 border-t border-white/5 text-[10px] text-slate-600 text-center flex items-center justify-center gap-2">
-          <Clock size={10} /> <span>Hora del servidor: {currentTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+          <Clock size={10} /> <span>Hora del servidor: {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
         </div>
       </div>
     );
   }
 
   // ===========================================================================
-  // RAMA 2: DISEÑO ANTERIOR (MODO CLARO) - TU DISEÑO ORIGINAL CORREGIDO
+  // BRANCH 2: PREVIOUS DESIGN (LIGHT MODE) - ORIGINAL DESIGN CORRECTED
   // ===========================================================================
   if (!isExpanded) {
     return (
@@ -148,9 +148,9 @@ export function SearchPanel({ locations = [], onLocationSelect }) {
         </div>
         <div className="relative group">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-[#1e3a8a] transition-colors" />
-          <Input 
-            autoFocus 
-            placeholder="Buscar facultad..." 
+          <Input
+            autoFocus
+            placeholder="Buscar facultad..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10 h-10 bg-white/50 border-gray-200 text-gray-900 placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-[#1e3a8a]/20 focus:border-[#1e3a8a] transition-all rounded-xl"

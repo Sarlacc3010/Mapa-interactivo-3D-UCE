@@ -11,18 +11,18 @@ export function BuildingInfoCard({ location, onClose, onShowEvents }) {
   useEffect(() => {
     const checkStatus = () => {
       if (!location.schedule) {
-          setStatus({ 
-            text: "HORARIO NO DISPONIBLE", 
-            color: theme === 'dark' 
-              ? "text-slate-500 border-slate-500/20 bg-slate-500/5" 
-              : "text-gray-400 border-gray-200 bg-gray-50", 
-            isOpen: false 
-          });
-          return;
+        setStatus({
+          text: "HORARIO NO DISPONIBLE",
+          color: theme === 'dark'
+            ? "text-slate-500 border-slate-500/20 bg-slate-500/5"
+            : "text-gray-400 border-gray-200 bg-gray-50",
+          isOpen: false
+        });
+        return;
       }
 
       const now = new Date();
-      const day = now.getDay(); 
+      const day = now.getDay();
       const currentMinutes = now.getHours() * 60 + now.getMinutes();
       const isWeekDay = day >= 1 && day <= 5;
       let isOpen = false;
@@ -31,50 +31,50 @@ export function BuildingInfoCard({ location, onClose, onShowEvents }) {
       const times = location.schedule.match(timePattern);
 
       if (isWeekDay && times && times.length >= 2) {
-          const [startStr, endStr] = times;
-          const [startH, startM] = startStr.split(':').map(Number);
-          const [endH, endM] = endStr.split(':').map(Number);
-          const startTotalMinutes = startH * 60 + startM;
-          const endTotalMinutes = endH * 60 + endM;
+        const [startStr, endStr] = times;
+        const [startH, startM] = startStr.split(':').map(Number);
+        const [endH, endM] = endStr.split(':').map(Number);
+        const startTotalMinutes = startH * 60 + startM;
+        const endTotalMinutes = endH * 60 + endM;
 
-          if (currentMinutes >= startTotalMinutes && currentMinutes < endTotalMinutes) {
-              isOpen = true;
-          }
+        if (currentMinutes >= startTotalMinutes && currentMinutes < endTotalMinutes) {
+          isOpen = true;
+        }
       }
 
       if (isOpen) {
-        setStatus({ 
-            text: "ABIERTO", 
-            color: theme === 'dark' 
-              ? "text-emerald-400 border-emerald-500/50 bg-emerald-500/10 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
-              : "text-emerald-700 border-emerald-200 bg-emerald-50",
-            isOpen: true 
+        setStatus({
+          text: "ABIERTO",
+          color: theme === 'dark'
+            ? "text-emerald-400 border-emerald-500/50 bg-emerald-500/10 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
+            : "text-emerald-700 border-emerald-200 bg-emerald-50",
+          isOpen: true
         });
       } else {
-        setStatus({ 
-            text: "CERRADO", 
-            color: theme === 'dark'
-              ? "text-red-400 border-red-500/50 bg-red-500/10 shadow-[0_0_10px_rgba(239,68,68,0.2)]"
-              : "text-red-700 border-red-200 bg-red-50",
-            isOpen: false 
+        setStatus({
+          text: "CERRADO",
+          color: theme === 'dark'
+            ? "text-red-400 border-red-500/50 bg-red-500/10 shadow-[0_0_10px_rgba(239,68,68,0.2)]"
+            : "text-red-700 border-red-200 bg-red-50",
+          isOpen: false
         });
       }
     };
-    
+
     checkStatus();
-    const interval = setInterval(checkStatus, 60000); 
+    const interval = setInterval(checkStatus, 60000);
     return () => clearInterval(interval);
-  }, [location, theme]); 
+  }, [location, theme]);
 
   return (
-    // CONTENEDOR PRINCIPAL: Misma distribución neón, colores dinámicos
+    // MAIN CONTAINER: Same neon layout, dynamic colors
     <div className={`absolute bottom-4 left-4 z-50 w-80 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 fade-in border transition-all duration-500
-      ${theme === 'dark' 
-        ? "bg-slate-900/90 border-white/10 ring-1 ring-black/50" 
+      ${theme === 'dark'
+        ? "bg-slate-900/90 border-white/10 ring-1 ring-black/50"
         : "bg-white/95 border-gray-200 ring-1 ring-black/5"
       }`}>
 
-      {/* SECCIÓN DE IMAGEN (Estructura modo neón) */}
+      {/* IMAGE SECTION (Neon mode structure) */}
       {location.image_url ? (
         <div className="h-40 w-full overflow-hidden relative group">
           <div className={`absolute inset-0 z-10 bg-gradient-to-t ${theme === 'dark' ? "from-slate-900" : "from-white/80"} to-transparent`}></div>
@@ -90,11 +90,11 @@ export function BuildingInfoCard({ location, onClose, onShowEvents }) {
           >
             <X className="w-4 h-4" />
           </button>
-          
-          {/* Categoría Flotante */}
+
+          {/* Floating Category */}
           <span className={`absolute bottom-2 left-4 z-20 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border backdrop-blur-md
-            ${theme === 'dark' 
-              ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/30" 
+            ${theme === 'dark'
+              ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/30"
               : "bg-blue-600/10 text-blue-700 border-blue-200"
             }`}>
             {location.category}
@@ -107,16 +107,16 @@ export function BuildingInfoCard({ location, onClose, onShowEvents }) {
         </div>
       )}
 
-      {/* CONTENIDO (Estructura modo neón) */}
+      {/* CONTENT (Neon mode structure) */}
       <div className="p-5 space-y-4">
         {location.image_url && <h2 className={`font-bold text-xl leading-tight transition-colors ${theme === 'dark' ? "text-white drop-shadow-md" : "text-[#1e3a8a]"}`}>{location.name}</h2>}
 
         <div className="flex items-center flex-wrap gap-3">
-          {/* Estado Neón / Claro */}
+          {/* Neon / Light State */}
           {location.schedule && (
             <span className={`text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full border flex items-center gap-2 transition-all ${status.color}`}>
-               <span className={`w-1.5 h-1.5 rounded-full ${status.isOpen ? (theme === 'dark' ? 'bg-emerald-400 animate-pulse' : 'bg-emerald-600') : 'bg-red-500'}`}></span>
-               {status.text}
+              <span className={`w-1.5 h-1.5 rounded-full ${status.isOpen ? (theme === 'dark' ? 'bg-emerald-400 animate-pulse' : 'bg-emerald-600') : 'bg-red-500'}`}></span>
+              {status.text}
             </span>
           )}
 
@@ -132,18 +132,18 @@ export function BuildingInfoCard({ location, onClose, onShowEvents }) {
         </p>
       </div>
 
-      {/* FOOTER ACCIONES */}
+      {/* FOOTER ACTIONS */}
       <div className={`p-4 border-t transition-colors ${theme === 'dark' ? "bg-black/20 border-white/5" : "bg-gray-50 border-gray-100"}`}>
-        <button 
-            onClick={() => onShowEvents(location)}
-            className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all duration-300 border
-              ${theme === 'dark' 
-                ? "bg-purple-500/10 text-purple-300 border-purple-500/30 hover:bg-purple-500 hover:text-white hover:shadow-[0_0_20px_rgba(168,85,247,0.4)]" 
-                : "bg-blue-600 text-white border-transparent hover:bg-blue-700 shadow-md hover:shadow-lg"
-              }`}
+        <button
+          onClick={() => onShowEvents(location)}
+          className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all duration-300 border
+              ${theme === 'dark'
+              ? "bg-purple-500/10 text-purple-300 border-purple-500/30 hover:bg-purple-500 hover:text-white hover:shadow-[0_0_20px_rgba(168,85,247,0.4)]"
+              : "bg-blue-600 text-white border-transparent hover:bg-blue-700 shadow-md hover:shadow-lg"
+            }`}
         >
-            <Calendar className="w-4 h-4" /> 
-            Ver Agenda de Eventos
+          <Calendar className="w-4 h-4" />
+          Ver Agenda de Eventos
         </button>
       </div>
     </div>

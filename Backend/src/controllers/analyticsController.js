@@ -1,7 +1,7 @@
 const pool = require('../config/db');
 const { sendSuccess, sendError } = require('../utils/responseUtils');
 
-// Queries como constantes para mejor mantenibilidad
+// Queries as constants for better maintainability
 const QUERIES = {
   TOTAL_VISITS: "SELECT COUNT(*) FROM visits",
   TOTAL_USERS: "SELECT COUNT(*) FROM users",
@@ -23,7 +23,7 @@ const QUERIES = {
   `
 };
 
-// Helper para ejecutar queries de analytics
+// Helper to execute analytics queries
 async function executeAnalyticsQuery(query, errorMessage) {
   try {
     const result = await pool.query(query);
@@ -34,7 +34,7 @@ async function executeAnalyticsQuery(query, errorMessage) {
   }
 }
 
-// 1. Resumen General (Tarjetas de arriba)
+// 1. General Summary (Top Cards)
 const getSummary = async (req, res) => {
   try {
     const [visitsRes, usersRes, eventsRes] = await Promise.all([
@@ -49,16 +49,16 @@ const getSummary = async (req, res) => {
       totalEvents: parseInt(eventsRes.rows[0].count)
     });
   } catch (err) {
-    sendError(res, "Error obteniendo resumen");
+    sendError(res, "Error getting summary");
   }
 };
 
-// 2. Lugares Más Visitados (Gráfica de Barras)
+// 2. Most Visited Locations (Bar Chart)
 const getTopLocations = async (req, res) => {
   try {
     const result = await executeAnalyticsQuery(
       QUERIES.TOP_LOCATIONS,
-      "Error obteniendo top lugares"
+      "Error getting top locations"
     );
     sendSuccess(res, result);
   } catch (err) {
@@ -66,15 +66,15 @@ const getTopLocations = async (req, res) => {
   }
 };
 
-// 3. Horas Pico (Gráfica de Área)
+// 3. Peak Hours (Area Chart)
 const getPeakHours = async (req, res) => {
   try {
     const result = await executeAnalyticsQuery(
       QUERIES.PEAK_HOURS,
-      "Error obteniendo horas pico"
+      "Error getting peak hours"
     );
 
-    // Rellenar las horas vacías (00:00 a 23:00) con 0
+    // Fill empty hours (00:00 to 23:00) with 0
     const fullDayStats = Array.from({ length: 24 }, (_, i) => {
       const found = result.find(r => parseInt(r.hour) === i);
       return {

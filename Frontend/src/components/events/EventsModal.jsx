@@ -8,22 +8,22 @@ import {
   Zap,
   AlertCircle,
   CalendarPlus,
-  Check, // <--- NUEVO ICONO PARA "GUARDADO"
+  Check, // NEW ICON FOR "SAVED"
 } from "lucide-react";
 import { useTheme } from "../../context/ThemeContext";
-import { useAuthStore } from "../../store/authStore"; // <--- IMPORTAR PARA VERIFICAR USUARIO
+import { useAuthStore } from "../../store/authStore"; // IMPORT TO VERIFY USER
 
 export function EventsModal({ isOpen, onClose, location }) {
   const { theme } = useTheme();
-  const { user } = useAuthStore(); // <--- OBTENER USUARIO
+  const { user } = useAuthStore(); // GET USER
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // 🔥 NUEVO ESTADO PARA GUARDAR LOS IDs DE EVENTOS SUSCRITOS
+  // NEW STATE TO SAVE SUBSCRIBED EVENT IDs
   const [savedEventIds, setSavedEventIds] = useState([]);
 
   // ===========================================================================
-  // 1. LÓGICA DE DATOS 🧠 (EVENTOS + SUSCRIPCIONES)
+  // 1. DATA LOGIC (EVENTS + SUBSCRIPTIONS)
   // ===========================================================================
   useEffect(() => {
     if (isOpen && location) {
@@ -32,33 +32,33 @@ export function EventsModal({ isOpen, onClose, location }) {
       const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       const API_BASE = isLocal ? 'http://localhost:5000' : '';
 
-      // 1. Cargar Eventos de la Ubicación
+      // 1. Load Location Events
       const fetchEvents = fetch(`${API_BASE}/api/events/location/${location.id}`)
         .then(res => res.json())
         .catch(() => []);
 
-      // 2. Cargar Mis Suscripciones SOLO si el usuario es estudiante autenticado
+      // 2. Load My Subscriptions ONLY if user is authenticated student
       const fetchSubs = (user?.role === 'student')
         ? fetch(`${API_BASE}/api/calendar/my-subscriptions`, { credentials: 'include' })
           .then(res => res.ok ? res.json() : [])
           .catch(() => [])
-        : Promise.resolve([]); // Si no es estudiante, devolver array vacío
+        : Promise.resolve([]); // If not student, return empty array
 
       Promise.all([fetchEvents, fetchSubs])
         .then(([eventsData, subsData]) => {
           setEvents(eventsData);
-          setSavedEventIds(subsData); // Guardamos la lista de IDs suscritos [1, 5, 20]
+          setSavedEventIds(subsData); // Save list of subscribed IDs [1, 5, 20]
           setLoading(false);
         });
     }
   }, [isOpen, location, user]);
 
-  // 🔥 FUNCIÓN PARA GUARDAR/BORRAR
+  // SAVE/DELETE FUNCTION
   const handleToggleEvent = async (eventId) => {
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     const API_BASE = isLocal ? 'http://localhost:5000' : '';
 
-    // Optimismo UI: Cambiamos el estado visualmente antes de que responda el servidor
+    // Optimistic UI: Change state visually before server responds
     const isAlreadySaved = savedEventIds.includes(eventId);
     if (isAlreadySaved) {
       setSavedEventIds(prev => prev.filter(id => id !== eventId));
@@ -73,7 +73,7 @@ export function EventsModal({ isOpen, onClose, location }) {
         body: JSON.stringify({ event_id: eventId }),
         credentials: 'include'
       });
-      // Si falla, podríamos revertir el estado aquí, pero por simpleza lo dejamos así.
+      // If fails, we could revert state here, but kept simple for now.
     } catch (error) {
       console.error("Error al guardar:", error);
     }
@@ -82,7 +82,7 @@ export function EventsModal({ isOpen, onClose, location }) {
   if (!isOpen) return null;
 
   // ===========================================================================
-  // 2. LÓGICA DE FECHAS 📅
+  // 2. DATE LOGIC
   // ===========================================================================
   const normalizeDate = (dateInput) => {
     if (!dateInput) return "";
@@ -113,7 +113,7 @@ export function EventsModal({ isOpen, onClose, location }) {
   };
 
   // ===========================================================================
-  // 3. RENDERIZADO (MODO OSCURO - NEÓN) 🌑
+  // 3. RENDER (DARK MODE - NEON)
   // ===========================================================================
   if (theme === "dark") {
     return (
@@ -126,7 +126,7 @@ export function EventsModal({ isOpen, onClose, location }) {
           onClick={(e) => e.stopPropagation()}
           className="relative w-full max-w-lg bg-slate-900/95 backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-8 duration-300 flex flex-col max-h-[40vh] border border-white/10 ring-1 ring-cyan-500/20"
         >
-          {/* Header Neón */}
+          {/* Neon Header */}
           <div className="relative p-6 shrink-0 border-b border-white/10 overflow-hidden bg-slate-950">
             <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/10 rounded-full -mr-20 -mt-20 blur-3xl pointer-events-none"></div>
             <div className="relative z-10 flex justify-between items-start">
@@ -152,7 +152,7 @@ export function EventsModal({ isOpen, onClose, location }) {
             </div>
           </div>
 
-          {/* Lista de Eventos con Scroll */}
+          {/* Event List with Scroll */}
           <div className="p-5 overflow-y-auto custom-scrollbar flex-1 bg-slate-900/50 relative">
             {loading ? (
               <div className="text-center py-10 text-cyan-500 animate-pulse">Cargando agenda...</div>
@@ -215,7 +215,7 @@ export function EventsModal({ isOpen, onClose, location }) {
                           {event.description}
                         </p>
 
-                        {/* 🔥 BOTÓN AGENDAR (DARK) - Solo para estudiantes autenticados */}
+                        {/* AGENDA BUTTON (DARK) - Only for authenticated students */}
                         {user?.role === 'student' && (
                           <div className="mt-auto flex justify-end">
                             <button
@@ -249,7 +249,7 @@ export function EventsModal({ isOpen, onClose, location }) {
   }
 
   // ===========================================================================
-  // 4. RENDERIZADO (MODO CLARO - INSTITUCIONAL) ☀️
+  // 4. RENDER (LIGHT MODE - INSTITUTIONAL)
   // ===========================================================================
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
@@ -261,7 +261,7 @@ export function EventsModal({ isOpen, onClose, location }) {
         onClick={(e) => e.stopPropagation()}
         className="relative w-full max-w-lg bg-gray-50 rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-8 duration-300 flex flex-col max-h-[40vh] border border-white/20"
       >
-        {/* Header Institucional */}
+        {/* Institutional Header */}
         <div className="relative p-6 shrink-0 bg-gradient-to-r from-[#1e3a8a] via-[#8b2555] to-[#D9232D] text-white overflow-hidden">
           <div className="relative z-10 flex justify-between items-start">
             <div>
@@ -284,7 +284,7 @@ export function EventsModal({ isOpen, onClose, location }) {
           </div>
         </div>
 
-        {/* Lista de Eventos */}
+        {/* Event List */}
         <div className="p-5 overflow-y-auto custom-scrollbar flex-1 bg-gray-50 relative">
           {loading ? (
             <div className="text-center py-10 text-[#1e3a8a] animate-pulse font-medium">Consultando agenda...</div>
@@ -301,7 +301,7 @@ export function EventsModal({ isOpen, onClose, location }) {
               {events.map((event, index) => {
                 const { month, day } = getDateParts(event.date);
                 const isToday = normalizeDate(event.date) === todayString;
-                const isSaved = savedEventIds.includes(event.id); // 🔥 VERIFICAMOS SI ESTÁ GUARDADO
+                const isSaved = savedEventIds.includes(event.id); // CHECK IF SAVED
 
                 return (
                   <div
@@ -347,14 +347,14 @@ export function EventsModal({ isOpen, onClose, location }) {
                         {event.description}
                       </p>
 
-                      {/* 🔥 BOTÓN AGENDAR (LIGHT) - CON LÓGICA ACTIVA */}
+                      {/* AGENDA BUTTON (LIGHT) - WITH ACTIVE LOGIC */}
                       <div className="mt-auto flex justify-end">
                         <button
                           onClick={() => handleToggleEvent(event.id)}
                           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all
                                    ${isSaved
-                              ? "bg-green-600 text-white border-green-600 shadow-md hover:bg-green-700" // Estilo Guardado
-                              : "bg-white text-[#1e3a8a] border border-gray-200 shadow-sm hover:bg-blue-50 hover:border-blue-200 hover:text-blue-800" // Estilo Normal
+                              ? "bg-green-600 text-white border-green-600 shadow-md hover:bg-green-700" // Saved Style
+                              : "bg-white text-[#1e3a8a] border border-gray-200 shadow-sm hover:bg-blue-50 hover:border-blue-200 hover:text-blue-800" // Normal Style
                             }`}
                         >
                           {isSaved ? <Check size={12} /> : <CalendarPlus size={12} />}

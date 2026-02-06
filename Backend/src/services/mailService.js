@@ -9,9 +9,11 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// --- 1. NOTIFICACIÓN DE EVENTOS (Tu función original) ---
+// --- 1. EVENT NOTIFICATION ---
 const sendEventNotification = async (emails, eventTitle, eventDate, eventDescription, eventLocation) => {
   if (!emails || emails.length === 0) return;
+
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
 
   const mailOptions = {
     from: `"Campus Virtual UCE" <${process.env.EMAIL_USER}>`,
@@ -39,7 +41,7 @@ const sendEventNotification = async (emails, eventTitle, eventDate, eventDescrip
 
           <p>Ingresa al mapa interactivo para ver la ubicación exacta.</p>
           
-          <a href="http://localhost" style="display: inline-block; background-color: #1e3a8a; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Ir al Mapa 3D</a>
+          <a href="${frontendUrl}" style="display: inline-block; background-color: #1e3a8a; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Ir al Mapa 3D</a>
         </div>
         <div style="background-color: #f1f1f1; padding: 10px; text-align: center; font-size: 12px; color: #666;">
           &copy; 2026 Campus Virtual UCE
@@ -50,16 +52,17 @@ const sendEventNotification = async (emails, eventTitle, eventDate, eventDescrip
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`📧 Notificación de evento enviada a ${emails.length} usuarios.`);
+    console.log(`Event notification sent to ${emails.length} users.`);
   } catch (error) {
-    console.error("❌ Error enviando notificación de evento:", error);
+    console.error("Error sending event notification:", error);
   }
 };
 
-// --- 2. NUEVA FUNCIÓN: VERIFICACIÓN DE CORREO ---
+// --- 2. EMAIL VERIFICATION ---
 const sendVerificationEmail = async (email, token) => {
-  // Ajusta la URL si en producción tu frontend está en otro puerto/dominio
-  const verificationUrl = `http://localhost/verify-email?token=${token}`;
+  // Adjust URL if frontend is on a different port/domain in production
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const verificationUrl = `${frontendUrl}/verify-email?token=${token}`;
 
   const mailOptions = {
     from: `"Seguridad UCE" <${process.env.EMAIL_USER}>`,
@@ -91,11 +94,11 @@ const sendVerificationEmail = async (email, token) => {
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`📧 Correo de verificación enviado a: ${email}`);
+    console.log(`Verification email sent to: ${email}`);
   } catch (error) {
-    console.error("❌ Error enviando verificación:", error);
+    console.error("Error sending verification:", error);
   }
 };
 
-// 🔥 EXPORTAMOS AMBAS FUNCIONES
+// EXPORT BOTH FUNCTIONS
 module.exports = { sendEventNotification, sendVerificationEmail };

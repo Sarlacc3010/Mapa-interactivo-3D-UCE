@@ -23,6 +23,10 @@ function Loader3D() {
   );
 }
 
+/**
+ * Main 3D Scene component handling the Canvas, lights, and camera controls.
+ * Manages switching between Orbit and FPS controls.
+ */
 export function Scene3D({
   isFpsMode,
   isTransitioning,
@@ -34,6 +38,7 @@ export function Scene3D({
   onEventFound,
   onVisitRegistered
 }) {
+  // Keyboard controls configuration for FPS mode
   const keyboardMap = [
     { name: "forward", keys: ["ArrowUp", "w", "W"] },
     { name: "backward", keys: ["ArrowDown", "s", "S"] },

@@ -1,20 +1,20 @@
 import React, { useState, useEffect, Suspense, lazy } from "react";
-import { Routes, Route, useSearchParams } from "react-router-dom"; // 🔥 1. useSearchParams
+import { Routes, Route, useSearchParams } from "react-router-dom"; // 1. useSearchParams
 
-// LIBRERÍAS DE GESTIÓN DE ESTADO Y SOCKETS
+// STATE MANAGEMENT AND SOCKETS LIBRARIES
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SocketProvider } from "./context/SocketContext";
 import api from "./api/client";
 import { useAuthStore } from "./store/authStore";
 
-// Contexto de Tema
+// Theme Context
 import { ThemeProvider } from "./context/ThemeContext";
 
 // HOOKS
 import { useLocations } from "./hooks/useLocations";
 import { useEvents } from "./hooks/useEvents";
 
-// Lazy Loading - TODOS los componentes pesados
+// Lazy Loading - ALL heavy components
 const Scene3D = lazy(() => import("./components/map/Scene3D").then((m) => ({ default: m.Scene3D })));
 const MapOverlay = lazy(() => import("./components/map/MapOverlay").then((m) => ({ default: m.MapOverlay })));
 const LoginScreen = lazy(() => import("./components/LoginScreen").then((m) => ({ default: m.LoginScreen })));
@@ -23,42 +23,42 @@ const VerifyEmail = lazy(() => import("./components/VerifyEmail").then((m) => ({
 
 const queryClient = new QueryClient();
 
-// Loader de Pantalla Completa
+// Full Screen Loader
 function ScreenLoader() {
   return (
     <div className="flex h-screen w-full flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-white gap-4 transition-colors duration-500">
       <div className="w-12 h-12 border-4 border-[#D9232D] border-t-transparent rounded-full animate-spin"></div>
-      <div className="animate-pulse font-bold tracking-widest text-sm">CARGANDO INTERFAZ...</div>
+      <div className="animate-pulse font-bold tracking-widest text-sm">LOADING INTERFACE...</div>
     </div>
   );
 }
 
 // ====================================================================
-// COMPONENTE CONTENEDOR DE LÓGICA (AppContent)
+// LOGIC CONTAINER COMPONENT (AppContent)
 // ====================================================================
 function AppContent() {
   const { locations } = useLocations();
 
-  // 🔥 2. OBTENEMOS 'setEvents' PARA ACTUALIZAR LA LISTA EN TIEMPO REAL
+  // 2. GET 'setEvents' TO UPDATE LIST IN REAL TIME
   const { events: dbEvents, setEvents } = useEvents();
 
   const { user, login, logout, isLoading } = useAuthStore();
 
-  // Estados UI
+  // UI States
   const [viewMode, setViewMode] = useState("map");
   const [selectedLoc, setSelectedLoc] = useState(null);
   const [showEventsModal, setShowEventsModal] = useState(false);
   const [welcomeAnimationDone, setWelcomeAnimationDone] = useState(false);
 
-  // Estados de Modos
+  // Mode States
   const [isFpsMode, setIsFpsMode] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
-  // 🔥 3. ESTADOS PARA GESTIÓN DE URL Y AGENDA AUTOMÁTICA
+  // 3. STATES FOR URL MANAGEMENT AND AUTO AGENDA
   const [searchParams, setSearchParams] = useSearchParams();
   const [autoOpenEvents, setAutoOpenEvents] = useState(false);
 
-  // 1. VERIFICAR SESIÓN (solo una vez al montar)
+  // 1. VERIFY SESSION (only once on mount)
   useEffect(() => {
     let isMounted = true;
 
@@ -68,15 +68,15 @@ function AppContent() {
         if (isMounted) {
           login(data.user);
 
-          // Limpiamos URL solo si no es estudiante (si es estudiante, la animación lo usa)
+          // Clear URL only if not student (animation uses it if student)
           if (data.user.role !== 'student' && searchParams.get("loginSuccess")) {
             setSearchParams({});
           }
         }
       } catch (error) {
-        // Silenciosamente manejar error 401 (usuario no autenticado)
+        // Silently handle 401 error (unauthenticated user)
         if (isMounted && error.response?.status !== 401) {
-          console.error("Error verificando sesión:", error);
+          console.error("Error verifying session:", error);
         }
         if (isMounted) {
           logout();
@@ -89,9 +89,9 @@ function AppContent() {
     return () => {
       isMounted = false;
     };
-  }, []); // Solo ejecutar una vez al montar
+  }, []); // Only execute once on mount
 
-  // 2. ANIMACIÓN BIENVENIDA ESTUDIANTE Y APERTURA DE AGENDA
+  // 2. STUDENT WELCOME ANIMATION AND AGENDA OPENING
   useEffect(() => {
     const isReady =
       user?.role === "student" &&
@@ -103,30 +103,30 @@ function AppContent() {
       const myFaculty = locations.find((l) => l.id == user.faculty_id);
 
       if (myFaculty) {
-        console.log("📍 Facultad encontrada, iniciando viaje a:", myFaculty.name);
+        console.log("Faculty found, starting journey to:", myFaculty.name);
 
         const timer = setTimeout(() => {
           setSelectedLoc(myFaculty);
           setWelcomeAnimationDone(true);
-          setSearchParams({}); // Limpiamos URL después de la animación
+          setSearchParams({}); // Clear URL after animation
         }, 500);
 
-        // 🔥 4. DISPARO DE AGENDA AUTOMÁTICA (2.5s después)
+        // 4. AUTO AGENDA TRIGGER (2.5s later)
         setTimeout(() => {
-          console.log("📅 Disparando apertura automática de agenda...");
+          console.log("Triggering auto agenda opening...");
           setAutoOpenEvents(true);
         }, 2500);
 
         return () => clearTimeout(timer);
       } else {
-        console.warn("⚠️ No se encontró la facultad con ID:", user.faculty_id);
+        console.warn("Faculty not found with ID:", user.faculty_id);
       }
     }
   }, [user, locations, welcomeAnimationDone, searchParams, setSearchParams]);
 
-  // 🔥 5. MANEJADORES PARA EL DASHBOARD DE ADMIN (CRUD LOCAL)
+  // 5. HANDLERS FOR ADMIN DASHBOARD (LOCAL CRUD)
   const handleAddEvent = (newEvent) => {
-    setEvents((prev) => [newEvent, ...prev]); // Agregamos al inicio
+    setEvents((prev) => [newEvent, ...prev]); // Add to beginning
   };
 
   const handleUpdateEvent = (updatedEvent) => {
@@ -152,13 +152,13 @@ function AppContent() {
   };
 
   const registerVisit = async (locationId) => {
-    console.log('🏢 [APP] Registrando visita para location:', locationId);
+    console.log('[APP] Registering visit for location:', locationId);
     try {
       await api.post(`/locations/${locationId}/visit`);
-      console.log('✅ [APP] Visita registrada exitosamente');
+      console.log('[APP] Visit registered successfully');
     }
     catch (e) {
-      console.error('❌ [APP] Error registrando visita:', e);
+      console.error('[APP] Error registering visit:', e);
     }
   };
 
@@ -187,7 +187,7 @@ function AppContent() {
     setTimeout(() => setIsTransitioning(false), 3000);
   };
 
-  // --- RENDERIZADO ---
+  // --- RENDERING ---
   if (isLoading) return <ScreenLoader />;
 
   if (!user) return (<Suspense fallback={<ScreenLoader />}><LoginScreen /></Suspense>);
@@ -199,7 +199,7 @@ function AppContent() {
           onLogout={handleLogout}
           onViewMap={() => setViewMode("map")}
           events={dbEvents}
-          // 🔥 6. PASAMOS LAS FUNCIONES AL DASHBOARD
+          // 6. PASS FUNCTIONS TO DASHBOARD
           onAddEvent={handleAddEvent}
           onUpdateEvent={handleUpdateEvent}
           onDeleteEvent={handleDeleteEvent}

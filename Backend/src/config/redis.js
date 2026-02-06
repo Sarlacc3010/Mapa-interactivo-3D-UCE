@@ -1,10 +1,10 @@
 const redis = require('redis');
 require('dotenv').config();
 
-// Ajusta esto según tu docker-compose. Si tu servicio se llama 'redis_cache', usa ese host.
+// Adjust this according to your docker-compose. If your service is named 'redis_cache', use that host.
 const url = process.env.REDIS_URL || `redis://${process.env.REDIS_HOST || 'redis'}:${process.env.REDIS_PORT || 6379}`;
 
-console.log(`🔌 [REDIS CONFIG] Configurado para: ${url}`);
+console.log(`[REDIS CONFIG] Configured for: ${url}`);
 
 const client = redis.createClient({
     url: url,
@@ -16,8 +16,8 @@ const client = redis.createClient({
     }
 });
 
-client.on('error', (err) => console.error('❌ [REDIS ERROR]:', err.message));
-client.on('connect', () => console.log('✅ [REDIS] Cliente conectado'));
+client.on('error', (err) => console.error('[REDIS ERROR]:', err.message));
+client.on('connect', () => console.log('[REDIS] Client connected'));
 
 const connectRedis = async () => {
     if (!client.isOpen) {

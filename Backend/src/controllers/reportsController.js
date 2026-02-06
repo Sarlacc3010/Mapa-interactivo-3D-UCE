@@ -4,44 +4,44 @@ const { logger } = require('../utils/logger');
 const path = require('path');
 const fs = require('fs');
 
-// 🌐 Traducciones de acciones a español
+// Spanish translations for actions
 const ACTION_LABELS = {
-  // Autenticación
+  // Authentication
   'LOGIN_SUCCESS': 'Inicio de sesión exitoso',
   'LOGIN_GOOGLE': 'Inicio de sesión con Google',
   'LOGIN_BLOCKED': 'Inicio de sesión bloqueado',
   'LOGOUT': 'Cierre de sesión',
 
-  // Registro
+  // Registration
   'REGISTER_ATTEMPT': 'Intento de registro',
   'ACCOUNT_VERIFIED': 'Cuenta verificada',
   'EMAIL_SENT': 'Correo enviado',
 
-  // Eventos
+  // Events
   'EVENT_CREATED': 'Evento creado',
   'EVENT_UPDATED': 'Evento actualizado',
   'EVENT_DELETED': 'Evento eliminado',
 
-  // Ubicaciones
+  // Locations
   'LOCATION_CREATED': 'Ubicación creada',
   'LOCATION_UPDATED': 'Ubicación actualizada',
   'LOCATION_DELETED': 'Ubicación eliminada',
 
-  // Analíticas
+  // Analytics
   'FACULTY_VISIT': 'Visita a facultad',
 
-  // Reportes
+  // Reports
   'REPORT_GENERATED': 'Reporte generado',
   'REPORT_GENERATED_PDF': 'Reporte PDF generado',
 
-  // Acceso
+  // Access
   'GUEST_ACCESS': 'Acceso como invitado',
   'SERVER_START': 'Servidor iniciado'
 };
 
 const generateLogsReport = async (req, res) => {
   try {
-    // 1️⃣ Consultar logs de sistema (últimas 24 horas)
+    // 1. Query system logs (last 24 hours)
     const logsResult = await pool.query(`
       SELECT 
         sl.action,
@@ -61,7 +61,7 @@ const generateLogsReport = async (req, res) => {
       ORDER BY sl.timestamp DESC
     `);
 
-    // 2️⃣ Consultar visitas a facultades (últimas 24 horas)
+    // 2. Query faculty visits (last 24 hours)
     const visitsResult = await pool.query(`
       SELECT 
         u.id as user_id,
@@ -79,7 +79,7 @@ const generateLogsReport = async (req, res) => {
       ORDER BY v.visit_date DESC
     `);
 
-    // 3️⃣ Combinar logs y visitas
+    // 3. Combine logs and visits
     const allLogs = [
       ...logsResult.rows.map(log => ({
         action: log.action,
@@ -101,10 +101,10 @@ const generateLogsReport = async (req, res) => {
       }))
     ];
 
-    // Ordenar por timestamp descendente
+    // Sort by timestamp descending
     allLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-    // 4️⃣ Calcular estadísticas
+    // 4. Calculate statistics
     const stats = {
       total: allLogs.length,
       uniqueUsers: new Set(allLogs.map(l => l.user_email).filter(Boolean)).size,
@@ -115,16 +115,16 @@ const generateLogsReport = async (req, res) => {
       stats.byAction[log.action] = (stats.byAction[log.action] || 0) + 1;
     });
 
-    // 5️⃣ Crear documento PDF
+    // 5. Create PDF document
     const doc = new PDFDocument({ margin: 50, size: 'A4' });
 
-    // Headers para descarga
+    // Download headers
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=reporte_uce_24h_${Date.now()}.pdf`);
 
     doc.pipe(res);
 
-    // 📄 ENCABEZADO
+    // HEADER
     const logoPath = path.join(__dirname, '../../assets/uce-logo.png');
     if (fs.existsSync(logoPath)) {
       doc.image(logoPath, 50, 45, { width: 60 });
@@ -141,11 +141,11 @@ const generateLogsReport = async (req, res) => {
 
     doc.moveDown(1);
 
-    // Línea divisoria
+    // Divider line
     doc.moveTo(50, 115).lineTo(550, 115)
       .strokeColor('#1e3a8a').lineWidth(2).stroke();
 
-    // 📊 INFORMACIÓN DEL REPORTE
+    // REPORT INFORMATION
     doc.moveDown(0.5);
     doc.fontSize(9).fillColor('black');
 
@@ -166,7 +166,7 @@ const generateLogsReport = async (req, res) => {
     doc.text(`Generado por: ${req.user.email}`, 350, 130);
     doc.text(`Fecha de emisión: ${formatDate(now)}`, 350, 145);
 
-    // 📈 RESUMEN ESTADÍSTICO
+    // STATISTICAL SUMMARY
     doc.moveDown(2);
     const summaryTop = 195;
 
@@ -192,14 +192,14 @@ const generateLogsReport = async (req, res) => {
       summaryY += 12;
     });
 
-    // 📋 TABLA DE LOGS DETALLADOS
+    // DETAILED LOGS TABLE
     const tableTop = summaryY + 20;
     const colAction = 50;
     const colUser = 180;
     const colDetails = 310;
     const colTime = 450;
 
-    // Encabezado de tabla
+    // Table header
     doc.font('Helvetica-Bold').fontSize(9).fillColor('white');
     doc.rect(50, tableTop - 5, 500, 20).fill('#1e3a8a');
 
@@ -208,17 +208,17 @@ const generateLogsReport = async (req, res) => {
     doc.text('DETALLES', colDetails + 5, tableTop);
     doc.text('FECHA/HORA', colTime + 5, tableTop);
 
-    // Filas de datos
+    // Data rows
     let yPosition = tableTop + 25;
     doc.font('Helvetica').fontSize(8).fillColor('black');
 
     allLogs.forEach((log, index) => {
-      // Nueva página si es necesario
+      // New page if necessary
       if (yPosition > 720) {
         doc.addPage();
         yPosition = 50;
 
-        // Repetir encabezado
+        // Repeat header
         doc.font('Helvetica-Bold').fontSize(9).fillColor('white');
         doc.rect(50, yPosition - 5, 500, 20).fill('#1e3a8a');
         doc.text('ACCIÓN', colAction + 5, yPosition);
@@ -229,31 +229,31 @@ const generateLogsReport = async (req, res) => {
         doc.font('Helvetica').fontSize(8).fillColor('black');
       }
 
-      // Fondo alternado
+      // Striped background
       if (index % 2 === 0) {
         doc.save();
         doc.rect(50, yPosition - 5, 500, 18).fill('#f3f4f6');
         doc.restore();
       }
 
-      // Acción traducida
+      // Translated action
       const actionLabel = ACTION_LABELS[log.action] || log.action;
       doc.text(actionLabel, colAction + 5, yPosition, { width: 120, ellipsis: true });
 
-      // Usuario (nombre + rol)
+      // User (name + role)
       const userInfo = `${log.user_name}\n(${log.user_role})`;
       doc.text(userInfo, colUser + 5, yPosition, { width: 120, ellipsis: true });
 
-      // Detalles
+      // Details
       doc.text(log.details || '-', colDetails + 5, yPosition, { width: 130, ellipsis: true });
 
-      // Fecha/Hora
+      // Date/Time
       doc.text(log.time, colTime + 5, yPosition);
 
       yPosition += 18;
     });
 
-    // 📌 PIE DE PÁGINA
+    // FOOTER
     const pageHeight = doc.page.height;
     doc.fontSize(7).fillColor('gray');
     doc.text(

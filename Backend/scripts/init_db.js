@@ -1,13 +1,13 @@
 // Backend/scripts/init_db.js
-// 🔥 CAMBIO: Importamos la conexión centralizada (subimos un nivel con ..)
-const pool = require('../src/config/db'); 
+// CHANGE: Import centralized connection (go up one level with ..)
+const pool = require('../src/config/db');
 const bcrypt = require('bcryptjs');
 
 const initDB = async () => {
   try {
-    console.log("🔄 Iniciando configuración de Base de Datos...");
+    console.log("Starting Database configuration...");
 
-    // 1. CREAR TABLAS BASE
+    // 1. CREATE BASE TABLES
     // Table users
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
@@ -29,7 +29,7 @@ const initDB = async () => {
           name VARCHAR(255) NOT NULL,
           description TEXT,
           category VARCHAR(50),
-          coordinates JSONB, -- Usamos JSONB para guardar {x, y, z}
+          coordinates JSONB, -- Using JSONB to save {x, y, z}
           object3d_id VARCHAR(100),
           faculty_id INTEGER,
           image_url TEXT,
@@ -55,13 +55,13 @@ const initDB = async () => {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS visits (
         id SERIAL PRIMARY KEY,
-        location_id INTEGER REFERENCES locations(id), -- Aseguramos que sea entero
+        location_id INTEGER REFERENCES locations(id), -- Ensure it is an integer
         visitor_email VARCHAR(255),
         visit_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
-    // 2. CREAR ADMIN (Si no existe)
+    // 2. CREATE ADMIN (If not exists)
     const adminExist = await pool.query("SELECT * FROM users WHERE email = 'admin-mapa@uce.edu.ec'");
     if (adminExist.rows.length === 0) {
       const salt = await bcrypt.genSalt(10);
@@ -70,13 +70,13 @@ const initDB = async () => {
         "INSERT INTO users (email, password, role) VALUES ($1, $2, $3)",
         ['admin-mapa@uce.edu.ec', hashedPassword, 'admin']
       );
-      console.log("👤 Usuario Admin creado.");
+      console.log("Admin User created.");
     }
 
-    console.log("🚀 Base de datos inicializada correctamente.");
+    console.log("Database initialized successfully.");
     process.exit();
   } catch (err) {
-    console.error("❌ Error inicializando DB:", err);
+    console.error("Error initializing DB:", err);
     process.exit(1);
   }
 };

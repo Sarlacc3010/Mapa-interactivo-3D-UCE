@@ -3,21 +3,21 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 const ThemeContext = createContext();
 
 export function ThemeProvider({ children }) {
-  // Leemos del localStorage o por defecto usamos 'light'
+  // Read from localStorage or default to 'light'
   const [theme, setTheme] = useState(
     localStorage.getItem('theme') || 'light'
   );
 
   useEffect(() => {
     const root = window.document.documentElement;
-    
-    // Sincroniza la clase 'dark' con el elemento raíz del HTML
+
+    // Synchronize 'dark' class with HTML root element
     if (theme === 'dark') {
       root.classList.add('dark');
     } else {
       root.classList.remove('dark');
     }
-    
+
     localStorage.setItem('theme', theme);
   }, [theme]);
 
@@ -32,5 +32,5 @@ export function ThemeProvider({ children }) {
   );
 }
 
-// 🔥 ASEGÚRATE DE QUE ESTA LÍNEA ESTÉ TAL CUAL:
+// ENSURE THIS LINE REMAINS AS IS:
 export const useTheme = () => useContext(ThemeContext);

@@ -10,12 +10,12 @@ export const SocketProvider = ({ children }) => {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    // 1. Conectar al Backend
+    // 1. Connect to Backend
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     const socketUrl = isLocal ? 'http://localhost:5000' : '/';
     const newSocket = io(socketUrl, {
       withCredentials: true,
-      transports: ['polling', 'websocket'], // Polling primero, luego upgrade a websocket
+      transports: ['polling', 'websocket'], // Polling first, then upgrade to websocket
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000
@@ -23,23 +23,23 @@ export const SocketProvider = ({ children }) => {
 
     setSocket(newSocket);
 
-    // 2. Escuchar Eventos Globales y Actualizar React Query
-    newSocket.on('connect', () => console.log("🟢 [SOCKET] Conectado ID:", newSocket.id));
+    // 2. Listen to Global Events and Update React Query
+    newSocket.on('connect', () => console.log("[SOCKET] Connected ID:", newSocket.id));
 
     newSocket.on('server:visit_registered', (data) => {
-      console.log("📈 [SOCKET] Nueva visita detectada:", data);
-      console.log("📈 [SOCKET] Invalidando queries de analytics...");
+      console.log("[SOCKET] New visit detected:", data);
+      console.log("[SOCKET] Invalidating analytics queries...");
       // Invalidar queries específicas con queryKeys exactos
       queryClient.invalidateQueries({ queryKey: ['analytics', 'summary'] });
       queryClient.invalidateQueries({ queryKey: ['analytics', 'top'] });
       queryClient.invalidateQueries({ queryKey: ['analytics', 'peak'] });
       queryClient.invalidateQueries({ queryKey: ['locations'] });
 
-      console.log("✅ [SOCKET] Queries invalidadas, React Query debería refetch ahora");
+      console.log("[SOCKET] Queries invalidated, React Query should refetch now");
     });
 
     newSocket.on('server:data_updated', (data) => {
-      console.log("🔄 Datos actualizados:", data);
+      console.log("Data updated:", data);
       queryClient.invalidateQueries(['events']);
       queryClient.invalidateQueries(['locations']);
     });

@@ -1,19 +1,19 @@
 const jwt = require('jsonwebtoken');
 
 const verifyToken = (req, res, next) => {
-  // BUSCAMOS EL TOKEN EN LAS COOKIES
+  // FIND TOKEN IN COOKIES
   const token = req.cookies.access_token;
 
   if (!token) {
-    return res.status(401).json({ error: "Acceso denegado: No hay sesión activa" });
+    return res.status(401).json({ error: "Access denied: No active session" });
   }
 
   try {
     const verified = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = verified; // Agregamos los datos del usuario a la request
-    next(); // Continuamos
+    req.user = verified; // Add user data to request
+    next(); // Continue
   } catch (error) {
-    res.status(400).json({ error: "Token inválido o expirado" });
+    res.status(400).json({ error: "Invalid or expired token" });
   }
 };
 
