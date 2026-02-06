@@ -38,6 +38,14 @@ export function EventsTab({ events, locations, onAddEvent, onUpdateEvent, onDele
     e.preventDefault();
     setIsSubmitting(true);
     setErrorMessage("");
+
+    // VALIDATION: End Time > Start Time
+    if (newEvent.end_time && newEvent.end_time <= newEvent.time) {
+      alert("⚠️ La hora de fin debe ser posterior a la hora de inicio");
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       const API_BASE = isLocal ? 'http://localhost:5000' : '';
@@ -105,7 +113,7 @@ export function EventsTab({ events, locations, onAddEvent, onUpdateEvent, onDele
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1">
                 <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Título del Evento</label>
-                <input required placeholder="Ej: Feria de Ciencias" value={newEvent.title} onChange={e => setNewEvent({ ...newEvent, title: e.target.value })} className="w-full bg-slate-950/50 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 placeholder:text-slate-600" />
+                <input required maxLength={100} placeholder="Ej: Feria de Ciencias" value={newEvent.title} onChange={e => setNewEvent({ ...newEvent, title: e.target.value })} className="w-full bg-slate-950/50 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 placeholder:text-slate-600" />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Ubicación</label>
@@ -119,12 +127,12 @@ export function EventsTab({ events, locations, onAddEvent, onUpdateEvent, onDele
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Detalles</label>
-                <textarea className="w-full bg-slate-950/50 border border-white/10 text-white rounded-xl px-4 py-3 text-sm min-h-[100px] focus:outline-none focus:border-cyan-500/50 placeholder:text-slate-600 resize-none" placeholder="Descripción..." value={newEvent.description} onChange={e => setNewEvent({ ...newEvent, description: e.target.value })} required />
+                <textarea maxLength={500} className="w-full bg-slate-950/50 border border-white/10 text-white rounded-xl px-4 py-3 text-sm min-h-[100px] focus:outline-none focus:border-cyan-500/50 placeholder:text-slate-600 resize-none" placeholder="Descripción..." value={newEvent.description} onChange={e => setNewEvent({ ...newEvent, description: e.target.value })} required />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2 space-y-1">
                   <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Fecha</label>
-                  <input type="date" required value={newEvent.date} onChange={e => setNewEvent({ ...newEvent, date: e.target.value })} className="w-full bg-slate-950/50 border border-white/10 text-white rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-cyan-500/50" />
+                  <input type="date" min={new Date().toISOString().split('T')[0]} required value={newEvent.date} onChange={e => setNewEvent({ ...newEvent, date: e.target.value })} className="w-full bg-slate-950/50 border border-white/10 text-white rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-cyan-500/50" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Inicio</label>
@@ -196,14 +204,14 @@ export function EventsTab({ events, locations, onAddEvent, onUpdateEvent, onDele
           </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Text color text-gray-900 added for readability */}
-            <Input required placeholder="Título" value={newEvent.title} onChange={e => setNewEvent({ ...newEvent, title: e.target.value })} className="text-gray-900" />
+            <Input required maxLength={100} placeholder="Título" value={newEvent.title} onChange={e => setNewEvent({ ...newEvent, title: e.target.value })} className="text-gray-900" />
             <select className="w-full h-10 border rounded-lg px-3 text-sm text-gray-900 bg-white border-gray-200" value={newEvent.location_id} onChange={e => setNewEvent({ ...newEvent, location_id: e.target.value })} required>
               <option value="">Ubicación...</option>
               {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
-            <textarea className="w-full border rounded-lg px-3 py-2 text-sm min-h-[80px] text-gray-900 bg-white border-gray-200" placeholder="Descripción" value={newEvent.description} onChange={e => setNewEvent({ ...newEvent, description: e.target.value })} required />
+            <textarea maxLength={500} className="w-full border rounded-lg px-3 py-2 text-sm min-h-[80px] text-gray-900 bg-white border-gray-200" placeholder="Descripción" value={newEvent.description} onChange={e => setNewEvent({ ...newEvent, description: e.target.value })} required />
             <div className="grid grid-cols-2 gap-2">
-              <Input type="date" required value={newEvent.date} onChange={e => setNewEvent({ ...newEvent, date: e.target.value })} className="col-span-2 text-gray-900" />
+              <Input type="date" min={new Date().toISOString().split('T')[0]} required value={newEvent.date} onChange={e => setNewEvent({ ...newEvent, date: e.target.value })} className="col-span-2 text-gray-900" />
               <Input type="time" required value={newEvent.time} onChange={e => setNewEvent({ ...newEvent, time: e.target.value })} className="text-gray-900" />
               <Input type="time" value={newEvent.end_time} onChange={e => setNewEvent({ ...newEvent, end_time: e.target.value })} className="text-gray-900" />
             </div>

@@ -23,7 +23,7 @@
 
 <p align="center">
   <strong>
-    <a href="#español-">🇪🇸 Leer en Español</a>
+    <a href="./README.es.md">🇪🇸 Leer en Español</a>
   </strong>
 </p>
 
@@ -586,6 +586,9 @@ Contributions are welcome! Please follow these steps:
 - **Frontend**: ESLint + Prettier
 - **Backend**: ESLint + Airbnb Style Guide
 - **Commits**: Conventional Commits
+- **Language**: 
+  - **Code/Comments/Logs**: English
+  - **UI/UX**: Spanish
 
 ---
 
@@ -906,6 +909,15 @@ Las contribuciones son bienvenidas. Por favor, sigue estos pasos:
 3. Commit tus cambios (`git commit -m 'Agregar CaracteristicaIncreible'`)
 4. Push a la rama (`git push origin feature/CaracteristicaIncreible`)
 5. Abre un Pull Request
+
+### Guía de Estilo
+
+- **Frontend**: ESLint + Prettier
+- **Backend**: ESLint + Airbnb Style Guide
+- **Commits**: Conventional Commits
+- **Idioma**:
+  - **Código/Comentarios/Logs**: Inglés
+  - **Interfaz de Usuario (UI)**: Español
 
 ---
 
