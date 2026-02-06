@@ -234,13 +234,24 @@ export default function Campus3D({
           const today = new Date();
           today.setHours(0, 0, 0, 0);
 
+          console.log('🎯 [EVENTS] Checking for active events at location:', originalLoc.name);
+          console.log('🕐 [EVENTS] Current time (minutes):', currentTime, `(${now.getHours()}:${now.getMinutes()})`);
+          console.log('📅 [EVENTS] Today:', today.toISOString());
+          console.log('📋 [EVENTS] Total events in system:', events.length);
+
           const hasActiveEvent = events.some(e => {
             if (String(e.location_id) !== String(originalLoc.id)) return false;
+
+            console.log('🔍 [EVENTS] Checking event:', e.title, 'at location_id:', e.location_id);
 
             // Check if event is today
             const eventDate = new Date(e.date);
             eventDate.setHours(0, 0, 0, 0);
-            if (eventDate.getTime() !== today.getTime()) return false;
+            console.log('📅 [EVENTS] Event date:', eventDate.toISOString(), 'vs Today:', today.toISOString());
+            if (eventDate.getTime() !== today.getTime()) {
+              console.log('❌ [EVENTS] Event is not today');
+              return false;
+            }
 
             // Check if event is happening NOW
             if (e.time && e.end_time) {
@@ -249,18 +260,29 @@ export default function Campus3D({
               const startMinutes = startH * 60 + startM;
               const endMinutes = endH * 60 + endM;
 
+              console.log('⏰ [EVENTS] Event time range:', `${e.time} - ${e.end_time}`, `(${startMinutes} - ${endMinutes} minutes)`);
+              console.log('⏰ [EVENTS] Current time:', currentTime, 'minutes');
+
               // Event is active if current time is between start and end
-              return currentTime >= startMinutes && currentTime <= endMinutes;
+              const isActive = currentTime >= startMinutes && currentTime <= endMinutes;
+              console.log(isActive ? '✅ [EVENTS] Event IS ACTIVE!' : '❌ [EVENTS] Event is not active now');
+              return isActive;
             }
 
+            console.log('⚠️ [EVENTS] Event missing time or end_time');
             return false;
           });
 
+          console.log(hasActiveEvent ? '🎉 [EVENTS] Found active event! Opening modal...' : '📭 [EVENTS] No active events found');
+
           if (hasActiveEvent && !notifiedEventsSession.current.has(originalLoc.id)) {
+            console.log('🚀 [EVENTS] Triggering onEventFound for:', originalLoc.name);
             if (onEventFound) onEventFound(originalLoc);
             notifiedEventsSession.current.add(originalLoc.id);
             // Clear after 60 seconds to allow re-notification
             setTimeout(() => notifiedEventsSession.current.delete(originalLoc.id), 60000);
+          } else if (hasActiveEvent) {
+            console.log('⏭️ [EVENTS] Event already notified in this session');
           }
         }
 

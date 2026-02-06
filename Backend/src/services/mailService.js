@@ -15,7 +15,7 @@ const sendEventNotification = async (emails, eventTitle, eventDate, eventDescrip
 
   const mailOptions = {
     from: `"Campus Virtual UCE" <${process.env.EMAIL_USER}>`,
-    to: emails, 
+    to: emails,
     subject: `📢 Nuevo Evento UCE: ${eventTitle}`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
@@ -39,7 +39,7 @@ const sendEventNotification = async (emails, eventTitle, eventDate, eventDescrip
 
           <p>Ingresa al mapa interactivo para ver la ubicación exacta.</p>
           
-          <a href="http://localhost:5173" style="display: inline-block; background-color: #1e3a8a; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Ir al Mapa 3D</a>
+          <a href="http://localhost" style="display: inline-block; background-color: #1e3a8a; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Ir al Mapa 3D</a>
         </div>
         <div style="background-color: #f1f1f1; padding: 10px; text-align: center; font-size: 12px; color: #666;">
           &copy; 2026 Campus Virtual UCE
@@ -59,7 +59,7 @@ const sendEventNotification = async (emails, eventTitle, eventDate, eventDescrip
 // --- 2. NUEVA FUNCIÓN: VERIFICACIÓN DE CORREO ---
 const sendVerificationEmail = async (email, token) => {
   // Ajusta la URL si en producción tu frontend está en otro puerto/dominio
-  const verificationUrl = `http://localhost:5173/verify-email?token=${token}`;
+  const verificationUrl = `http://localhost/verify-email?token=${token}`;
 
   const mailOptions = {
     from: `"Seguridad UCE" <${process.env.EMAIL_USER}>`,

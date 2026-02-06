@@ -93,12 +93,66 @@ const createEvent = async (req, res) => {
     }
 
     // Validar que la fecha no sea pasada
+    // Ecuador está en UTC-5, ajustamos la comparación
     const eventDateTime = new Date(`${date}T${time || '00:00:00'}`);
     const now = new Date();
 
-    if (eventDateTime < now) {
+    // Ajustar por zona horaria de Ecuador (UTC-5 = -5 horas = -18000000 ms)
+    const ecuadorOffset = 5 * 60 * 60 * 1000; // 5 horas en milisegundos
+    const nowEcuador = new Date(now.getTime() - ecuadorOffset);
+
+    if (eventDateTime < nowEcuador) {
       return sendValidationError(res, 'No se pueden crear eventos con fechas pasadas');
     }
+
+    // Validar que el evento esté dentro del horario de la facultad
+    const locationResult = await pool.query(
+      "SELECT name, schedule FROM locations WHERE id = $1",
+      [location_id]
+    );
+
+    if (locationResult.rows.length === 0) {
+      return sendValidationError(res, 'Ubicación no encontrada');
+    }
+
+    const { name: locationName, schedule } = locationResult.rows[0];
+
+    if (schedule && time) {
+      // Parse schedule format: "07:00 - 20:00"
+      const scheduleMatch = schedule.match(/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/);
+
+      if (scheduleMatch) {
+        const [, openTime, closeTime] = scheduleMatch;
+        const [openH, openM] = openTime.split(':').map(Number);
+        const [closeH, closeM] = closeTime.split(':').map(Number);
+        const [eventH, eventM] = time.split(':').map(Number);
+
+        const openMinutes = openH * 60 + openM;
+        const closeMinutes = closeH * 60 + closeM;
+        const eventMinutes = eventH * 60 + eventM;
+
+        if (eventMinutes < openMinutes || eventMinutes > closeMinutes) {
+          return sendValidationError(
+            res,
+            `El evento debe estar dentro del horario de ${locationName}: ${schedule}`
+          );
+        }
+
+        // Also validate end_time if provided
+        if (end_time) {
+          const [endH, endM] = end_time.split(':').map(Number);
+          const endMinutes = endH * 60 + endM;
+
+          if (endMinutes > closeMinutes) {
+            return sendValidationError(
+              res,
+              `El evento debe terminar antes del cierre de ${locationName} (${closeTime})`
+            );
+          }
+        }
+      }
+    }
+
 
     // 1. Insertar evento
     const newEvent = await pool.query(

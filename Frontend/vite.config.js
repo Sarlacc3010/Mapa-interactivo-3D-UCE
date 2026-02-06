@@ -13,21 +13,47 @@ export default defineConfig({
     }
   },
   build: {
+    // 🚀 PRODUCCIÓN: Minificación agresiva con Terser
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,      // Elimina console.log en producción
+        drop_debugger: true,     // Elimina debugger statements
+        pure_funcs: ['console.info', 'console.debug'] // Elimina funciones específicas
+      }
+    },
     rollupOptions: {
       output: {
         manualChunks: {
-          // Separar Three.js en su propio chunk (muy pesado ~600KB)
+          // 📦 React ecosystem (core libraries)
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+
+          // 🎨 Three.js ecosystem (muy pesado ~600KB)
           'three': ['three'],
-          // Separar React Query en su propio chunk
+          'three-fiber': ['@react-three/fiber', '@react-three/drei'],
+
+          // 🔄 Data fetching & state
           'react-query': ['@tanstack/react-query'],
-          // Separar Socket.IO en su propio chunk
+
+          // 🔌 Real-time communication
           'socket': ['socket.io-client'],
-          // Separar Lucide icons en su propio chunk
+
+          // 🎯 Icons (separado para mejor caching)
           'icons': ['lucide-react'],
+
+          // 📊 Charts & UI components
+          'ui-vendor': ['recharts']
         }
       }
     },
     // Aumentar el límite de advertencia de chunk size
     chunkSizeWarningLimit: 1000,
+
+    // 🎯 Optimizaciones adicionales
+    reportCompressedSize: false, // Más rápido en CI/CD
+    sourcemap: false,            // No generar sourcemaps en producción (más rápido)
+
+    // 📦 Optimización de assets
+    assetsInlineLimit: 4096,     // Inline assets < 4KB como base64
   }
 })

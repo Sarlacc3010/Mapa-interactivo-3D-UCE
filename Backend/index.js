@@ -9,6 +9,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const compression = require('compression'); // 🚀 Compresión gzip
 require('dotenv').config();
 
 // CONFIGURACIONES
@@ -26,10 +27,25 @@ const SECRET_KEY = process.env.JWT_SECRET;
 
 // MIDDLEWARES GLOBALES
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+    origin: ['http://localhost', 'http://localhost:5173', 'http://127.0.0.1:5173'],
     credentials: true
 }));
 app.use(express.json());
+
+// 🚀 COMPRESIÓN GZIP: Reduce el tamaño de las respuestas en 60-80%
+app.use(compression({
+    filter: (req, res) => {
+        // No comprimir si el cliente lo solicita
+        if (req.headers['x-no-compression']) {
+            return false;
+        }
+        // Comprimir todo lo demás
+        return compression.filter(req, res);
+    },
+    level: 6, // Balance entre velocidad y compresión (1-9, default: 6)
+    threshold: 1024, // Solo comprimir respuestas > 1KB
+}));
+
 app.use(cookieParser());
 app.use(passport.initialize());
 
@@ -53,7 +69,7 @@ const startServer = async () => {
         // 3. Configurar WebSockets y Servidor HTTP (ANTES DE CARGAR RUTAS)
         const server = http.createServer(app);
         const io = new Server(server, {
-            cors: { origin: ['http://localhost:5173', 'http://127.0.0.1:5173'], credentials: true }
+            cors: { origin: ['http://localhost', 'http://localhost:5173', 'http://127.0.0.1:5173'], credentials: true }
         });
 
         // 4. Middleware para inyectar io en req (ANTES DE CARGAR RUTAS)
@@ -102,13 +118,13 @@ function setupAuthRoutes(app) {
     app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
     app.get('/auth/google/callback',
-        passport.authenticate('google', { session: false, failureRedirect: 'http://localhost:5173/login?error=auth_failed' }),
+        passport.authenticate('google', { session: false, failureRedirect: 'http://localhost/login?error=auth_failed' }),
         (req, res) => {
             const user = req.user;
             const token = jwt.sign({ id: user.id, email: user.email, role: user.role, faculty_id: user.faculty_id }, SECRET_KEY, { expiresIn: '24h' });
             logger.info('LOGIN_GOOGLE', { user_email: user.email });
             res.cookie('access_token', token, COOKIE_OPTIONS);
-            res.redirect(`http://localhost:5173/?loginSuccess=true&role=${user.role}`);
+            res.redirect(`http://localhost/?loginSuccess=true&role=${user.role}`);
         }
     );
 
