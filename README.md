@@ -316,7 +316,7 @@ This command will:
 |:---|:---|:---|
 | **🌐 Web Application** | http://localhost | - |
 | **🔌 API Server** | http://localhost:5000 | - |
-| **🐘 PgAdmin** | http://localhost:5050 | admin-mapa@uce.edu.ec / admin |
+| **🐘 PgAdmin** | http://localhost:5050 | - |
 | **📊 Redis Commander** | http://localhost:8082 | - |
 
 5. **Initialize Database**
