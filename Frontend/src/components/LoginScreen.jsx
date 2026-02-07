@@ -229,7 +229,9 @@ export function LoginScreen() {
                     type="button"
                     onClick={() => {
                       const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-                      const authUrl = isLocal ? 'http://localhost:5000/auth/google' : '/auth/google';
+                      const authUrl = isLocal
+                        ? 'http://localhost:5000/auth/google'
+                        : 'https://abel-navarrete.programacionwebuce.net/auth/google';
                       window.location.href = authUrl;
                     }}
                     className="w-full flex items-center justify-center gap-3 bg-white border border-gray-200 text-gray-700 font-semibold py-3 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm group"

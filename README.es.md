@@ -188,11 +188,11 @@ La plataforma permite a estudiantes y visitantes explorar virtualmente el campus
 
 | Vista Satelital | Modo Primera Persona |
 |:---:|:---:|
-| ![Vista Satelital](https://via.placeholder.com/600x400/1e3a8a/ffffff?text=Vista+Satelital) | ![Modo FPS](https://via.placeholder.com/600x400/059669/ffffff?text=Modo+FPS) |
+| ![Vista Satelital](https://ubicaciones-mapa-uce.s3.us-east-005.backblazeb2.com/ScreenShots/satellite-view.jpg) | ![Modo FPS](https://ubicaciones-mapa-uce.s3.us-east-005.backblazeb2.com/ScreenShots/fps-mode.jpg) |
 | **Tarjeta de Información del Edificio** | **Modal de Eventos** |
-| ![Info Edificio](https://via.placeholder.com/600x400/7c3aed/ffffff?text=Info+Edificio) | ![Eventos](https://via.placeholder.com/600x400/dc2626/ffffff?text=Modal+Eventos) |
+| ![Info Edificio](https://ubicaciones-mapa-uce.s3.us-east-005.backblazeb2.com/ScreenShots/building-info.jpg) | ![Eventos](https://ubicaciones-mapa-uce.s3.us-east-005.backblazeb2.com/ScreenShots/events-modal.jpg) |
 | **Panel de Administración** | **Analíticas** |
-| ![Panel](https://via.placeholder.com/600x400/D9232D/ffffff?text=Panel+Admin) | ![Analíticas](https://via.placeholder.com/600x400/ea580c/ffffff?text=Analíticas) |
+| ![Panel](https://ubicaciones-mapa-uce.s3.us-east-005.backblazeb2.com/ScreenShots/admin-dashboard.jpg) | ![Analíticas](https://ubicaciones-mapa-uce.s3.us-east-005.backblazeb2.com/ScreenShots/analytics.jpg) |
 
 ---
 
